@@ -62,7 +62,7 @@ export default async function CityToolPage({ params }: Props) {
             <dd className="font-semibold">{city.population.toLocaleString("fr-CA")}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">Region</dt>
+            <dt className="text-muted-foreground">Région</dt>
             <dd className="font-semibold">{city.region}</dd>
           </div>
         </dl>

@@ -64,8 +64,8 @@ function ToolCTA({ tool }: { tool: ToolConfig }) {
 
 function ToolFAQ({ items }: { items: ToolConfig["faqItems"] }) {
   return (
-    <section aria-label="Questions frequentes" className="space-y-4">
-      <h2 className="text-xl md:text-2xl font-semibold">Questions frequentes</h2>
+    <section aria-label="Questions fréquentes" className="space-y-4">
+      <h2 className="text-xl md:text-2xl font-semibold">Questions fréquentes</h2>
       <Accordion className="w-full">
         {items.map((item, i) => (
           <AccordionItem key={i} value={`faq-${i}`}>
@@ -91,8 +91,8 @@ function RelatedTools({ slugs }: { slugs: string[] }) {
   if (related.length === 0) return null;
 
   return (
-    <section aria-label="Outils lies" className="space-y-4">
-      <h2 className="text-xl md:text-2xl font-semibold">Outils lies</h2>
+    <section aria-label="Outils liés" className="space-y-4">
+      <h2 className="text-xl md:text-2xl font-semibold">Outils liés</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {related.map((tool) => (
           <Link key={tool!.toolSlug} href={`/${tool!.toolSlug}`}>
@@ -123,7 +123,7 @@ export function ToolLayout({
   children: React.ReactNode;
 }) {
   const title = city
-    ? `${config.toolTitle} a ${city}`
+    ? `${config.toolTitle} à ${city}`
     : config.toolTitle;
 
   return (

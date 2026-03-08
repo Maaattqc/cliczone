@@ -1,6 +1,25 @@
-# Standards de design et de code — Plateforme donnees Quebec
+# Standards de design et de code — Plateforme données Québec
 
-Ce document definit COMMENT construire chaque page de la plateforme. Le doc `architecture-projet.md` definit QUOI builder (structure de fichiers, composants, DB). Celui-ci definit les regles de design, les patterns de code, et les anti-patterns visuels.
+Ce document définit COMMENT construire chaque page de la plateforme. Le doc `architecture-projet.md` définit QUOI builder (structure de fichiers, composants, DB). Celui-ci définit les règles de design, les patterns de code, et les anti-patterns visuels.
+
+---
+
+## 0. Règle absolue — Français avec accents
+
+**TOUS les textes visibles par l'utilisateur DOIVENT utiliser les accents français corrects.**
+
+- ✅ `Vérifier un entrepreneur` — PAS ~~Verifier un entrepreneur~~
+- ✅ `Québec` — PAS ~~Quebec~~
+- ✅ `résultat détaillé` — PAS ~~resultat detaille~~
+- ✅ `décontamination` — PAS ~~decontamination~~
+- ✅ `évaluation foncière` — PAS ~~evaluation fonciere~~
+
+Cela s'applique à :
+- Titres, descriptions, labels, placeholders, FAQs, meta tags, noms de villes, régions
+- Fichiers concernés : `registry.ts`, composants, pages, blog posts, metadata SEO
+- Seule exception : les slugs d'URL restent sans accents (`/verifier-entrepreneur`, pas `/vérifier-entrepreneur`)
+
+**Ne jamais écrire de texte français sans accents. C'est une faute professionnelle visible par tous les utilisateurs.**
 
 ---
 

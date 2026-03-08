@@ -28,7 +28,7 @@ export function Footer() {
           <div>
             <p className="text-lg font-bold text-primary">ClicZone</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Donnees publiques du Quebec, simplifiees.
+              Données publiques du Québec, simplifiées.
             </p>
             <p className="mt-4 text-xs text-muted-foreground">
               MF Digital
@@ -54,7 +54,7 @@ export function Footer() {
 
           {/* Categories */}
           <div>
-            <p className="text-sm font-semibold">Categories</p>
+            <p className="text-sm font-semibold">Catégories</p>
             <ul className="mt-3 space-y-2">
               {categoryLinks.map((link) => (
                 <li key={link.href}>
@@ -78,7 +78,7 @@ export function Footer() {
                   href="/a-propos"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  A propos
+                  À propos
                 </Link>
               </li>
               <li>
@@ -86,7 +86,7 @@ export function Footer() {
                   href="/confidentialite"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Confidentialite
+                  Confidentialité
                 </Link>
               </li>
               <li>
@@ -110,7 +110,7 @@ export function Footer() {
         </div>
 
         <div className="mt-10 border-t pt-6 text-center text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} MF Digital. Tous droits reserves. Donnees
+          &copy; {new Date().getFullYear()} MF Digital. Tous droits réservés. Données
           sous licence CC-BY 4.0 de donneesquebec.ca.
         </div>
       </div>

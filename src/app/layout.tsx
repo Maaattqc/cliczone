@@ -13,11 +13,11 @@ const plusJakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "ClicZone — Donnees publiques du Quebec",
+    default: "ClicZone — Données publiques du Québec",
     template: "%s | ClicZone",
   },
   description:
-    "100+ outils bases sur les donnees ouvertes du Quebec. Verifiez un entrepreneur, une zone inondable, un terrain contamine et plus.",
+    "100+ outils basés sur les données ouvertes du Québec. Vérifiez un entrepreneur, une zone inondable, un terrain contaminé et plus.",
   metadataBase: new URL("https://cliczone.ca"),
   alternates: {
     languages: { "fr-CA": "https://cliczone.ca" },

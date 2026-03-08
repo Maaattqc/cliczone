@@ -40,7 +40,7 @@ export function ToolInput({
         />
       </div>
       <Button type="submit" className="w-full sm:w-auto h-11">
-        Verifier maintenant
+        Vérifier maintenant
       </Button>
     </form>
   );

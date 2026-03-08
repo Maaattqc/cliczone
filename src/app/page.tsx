@@ -4,10 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { getAllTools, getAllCities } from "@/lib/tools/registry";
 
 const categories = [
-  { slug: "immobilier", label: "Immobilier", description: "Zones inondables, terrains contamines, zonage et permis." },
-  { slug: "entrepreneurs", label: "Entrepreneurs", description: "Verification de licences RBQ et historique des plaintes." },
+  { slug: "immobilier", label: "Immobilier", description: "Zones inondables, terrains contaminés, zonage et permis." },
+  { slug: "entrepreneurs", label: "Entrepreneurs", description: "Vérification de licences RBQ et historique des plaintes." },
   { slug: "familles", label: "Familles", description: "Garderies, CPE et places disponibles." },
-  { slug: "emploi", label: "Emploi", description: "Salaires par metier et region au Quebec." },
+  { slug: "emploi", label: "Emploi", description: "Salaires par métier et région au Québec." },
 ];
 
 export default function HomePage() {
@@ -19,17 +19,17 @@ export default function HomePage() {
       {/* Hero */}
       <section className="text-center space-y-4">
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
-          Donnees publiques du Quebec, simplifiees.
+          Données publiques du Québec, simplifiées.
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Verifiez un entrepreneur, une zone inondable, un terrain contamine et plus encore.
-          Resultats instantanes a partir des registres officiels.
+          Vérifiez un entrepreneur, une zone inondable, un terrain contaminé et plus encore.
+          Résultats instantanés à partir des registres officiels.
         </p>
       </section>
 
       {/* Categories */}
-      <section aria-label="Categories" className="space-y-6">
-        <h2 className="text-2xl font-semibold">Par categorie</h2>
+      <section aria-label="Catégories" className="space-y-6">
+        <h2 className="text-2xl font-semibold">Par catégorie</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {categories.map((cat) => (
             <Link key={cat.slug} href={`/${cat.slug}`}>
