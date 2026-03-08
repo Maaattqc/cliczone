@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Menu, X, Sun, Moon, Search } from "lucide-react";
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { SearchDialog } from "./search-dialog";
 
@@ -78,6 +79,16 @@ export function Navbar() {
               <Moon className="h-5 w-5" aria-hidden="true" />
             )}
           </Button>
+          <Show when="signed-out">
+            <SignInButton mode="modal">
+              <Button variant="outline" size="sm" className="hidden sm:inline-flex">
+                Connexion
+              </Button>
+            </SignInButton>
+          </Show>
+          <Show when="signed-in">
+            <UserButton />
+          </Show>
           <Button
             variant="ghost"
             size="icon"

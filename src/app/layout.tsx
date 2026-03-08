@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
+import { frFR } from "@clerk/localizations";
 import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
@@ -34,10 +36,12 @@ export default function RootLayout({
   return (
     <html lang="fr-CA" suppressHydrationWarning>
       <body className={`${plusJakarta.variable} antialiased`}>
-        <JsonLd data={generateOrganizationSchema()} />
-        <Navbar />
-        {children}
-        <Footer />
+        <ClerkProvider localization={frFR}>
+          <JsonLd data={generateOrganizationSchema()} />
+          <Navbar />
+          {children}
+          <Footer />
+        </ClerkProvider>
       </body>
     </html>
   );
