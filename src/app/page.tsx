@@ -1,65 +1,92 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { getAllTools, getAllCities } from "@/lib/tools/registry";
 
-export default function Home() {
+const categories = [
+  { slug: "immobilier", label: "Immobilier", description: "Zones inondables, terrains contamines, zonage et permis." },
+  { slug: "entrepreneurs", label: "Entrepreneurs", description: "Verification de licences RBQ et historique des plaintes." },
+  { slug: "familles", label: "Familles", description: "Garderies, CPE et places disponibles." },
+  { slug: "emploi", label: "Emploi", description: "Salaires par metier et region au Quebec." },
+];
+
+export default function HomePage() {
+  const tools = getAllTools();
+  const cities = getAllCities();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
+      {/* Hero */}
+      <section className="text-center space-y-4">
+        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
+          Donnees publiques du Quebec, simplifiees.
+        </h1>
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          Verifiez un entrepreneur, une zone inondable, un terrain contamine et plus encore.
+          Resultats instantanes a partir des registres officiels.
+        </p>
+      </section>
+
+      {/* Categories */}
+      <section aria-label="Categories" className="space-y-6">
+        <h2 className="text-2xl font-semibold">Par categorie</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {categories.map((cat) => (
+            <Link key={cat.slug} href={`/${cat.slug}`}>
+              <Card className="hover:border-primary/30 transition-colors h-full">
+                <CardHeader>
+                  <CardTitle className="text-lg">{cat.label}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">{cat.description}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* All tools */}
+      <section aria-label="Tous les outils" className="space-y-6">
+        <h2 className="text-2xl font-semibold">Tous les outils</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {tools.map((tool) => (
+            <Link key={tool.toolSlug} href={`/${tool.toolSlug}`}>
+              <Card className="hover:border-primary/30 transition-colors h-full">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{tool.toolName}</CardTitle>
+                    <Badge variant="secondary" className="capitalize text-xs">
+                      {tool.category}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {tool.toolDescription}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
-      </main>
-    </div>
+      </section>
+
+      {/* Cities */}
+      <section aria-label="Villes" className="space-y-6">
+        <h2 className="text-2xl font-semibold">Villes couvertes</h2>
+        <div className="flex flex-wrap gap-2">
+          {cities.map((city) => (
+            <Link
+              key={city.slug}
+              href={`/verifier-entrepreneur/${city.slug}`}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
+            >
+              {city.name}
+            </Link>
+          ))}
+        </div>
+      </section>
+    </main>
   );
 }
