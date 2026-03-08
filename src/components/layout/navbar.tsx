@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X, Sun, Moon, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SearchDialog } from "./search-dialog";
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dark, setDark] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   function toggleTheme() {
     const next = !dark;
@@ -15,6 +17,17 @@ export function Navbar() {
     document.documentElement.classList.toggle("dark", next);
     localStorage.setItem("theme", next ? "dark" : "light");
   }
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const links = [
     { href: "/immobilier", label: "Immobilier" },
@@ -45,7 +58,12 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" aria-label="Rechercher">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Rechercher"
+            onClick={() => setSearchOpen(true)}
+          >
             <Search className="h-5 w-5" aria-hidden="true" />
           </Button>
           <Button
@@ -91,6 +109,8 @@ export function Navbar() {
           ))}
         </div>
       )}
+
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   );
 }

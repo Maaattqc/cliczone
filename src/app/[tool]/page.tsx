@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getToolConfig, getAllTools, getAllCities } from "@/lib/tools/registry";
 import { ToolLayout } from "@/components/tools/tool-layout";
-import { ToolInput } from "@/components/tools/tool-input";
+import { ToolSearch } from "@/components/tools/tool-search";
 
 interface Props {
   params: Promise<{ tool: string }>;
@@ -39,7 +39,7 @@ export default async function ToolPage({ params }: Props) {
 
   return (
     <ToolLayout config={config}>
-      <ToolInput placeholder={config.inputPlaceholder} />
+      <ToolSearch toolSlug={config.toolSlug} placeholder={config.inputPlaceholder} />
 
       {/* City links for SEO */}
       <section aria-label="Villes disponibles" className="space-y-4">

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getToolConfig, getAllTools, getAllCities, getCity } from "@/lib/tools/registry";
 import { ToolLayout } from "@/components/tools/tool-layout";
-import { ToolInput } from "@/components/tools/tool-input";
+import { ToolSearch } from "@/components/tools/tool-search";
 
 interface Props {
   params: Promise<{ tool: string; ville: string }>;
@@ -49,7 +49,7 @@ export default async function CityToolPage({ params }: Props) {
 
   return (
     <ToolLayout config={config} city={city.name}>
-      <ToolInput placeholder={config.inputPlaceholder} />
+      <ToolSearch toolSlug={config.toolSlug} placeholder={config.inputPlaceholder} ville={city.name} />
 
       {/* City stats */}
       <section aria-label="Statistiques locales" className="space-y-2">

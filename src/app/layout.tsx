@@ -3,6 +3,8 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
+import { JsonLd } from "@/components/seo/json-ld";
+import { generateOrganizationSchema } from "@/lib/seo/structured-data";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-sans",
@@ -32,6 +34,7 @@ export default function RootLayout({
   return (
     <html lang="fr-CA" suppressHydrationWarning>
       <body className={`${plusJakarta.variable} antialiased`}>
+        <JsonLd data={generateOrganizationSchema()} />
         <Navbar />
         {children}
         <Footer />
