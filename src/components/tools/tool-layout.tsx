@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ChevronRight, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Accordion,
@@ -11,6 +10,7 @@ import {
 // Note: Base UI Accordion — no type/collapsible props needed
 import type { ToolConfig } from "@/lib/tools/types";
 import { getAllTools } from "@/lib/tools/registry";
+import { ScrollToSearchButton } from "@/components/tools/scroll-to-search-button";
 
 function Breadcrumb({ tool, city }: { tool: ToolConfig; city?: string }) {
   return (
@@ -54,9 +54,7 @@ function ToolCTA({ tool }: { tool: ToolConfig }) {
             <span>{feature}</span>
           </div>
         ))}
-        <Button className="w-full sm:w-auto mt-4" size="lg">
-          Obtenir le rapport
-        </Button>
+        <ScrollToSearchButton />
       </CardContent>
     </Card>
   );

@@ -18,6 +18,8 @@ import { GarderiesResult } from "@/components/tools/results/garderies-result";
 import { SalairesResult } from "@/components/tools/results/salaires-result";
 import { ResultSkeleton } from "@/components/tools/results/result-skeleton";
 import { NoResults } from "@/components/tools/results/no-results";
+import { CheckoutButton } from "@/components/tools/checkout-button";
+import { TOOL_PRICES } from "@/lib/tool-prices";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const actions: Record<string, (query: string, ville?: string) => Promise<any>> = {
@@ -115,7 +117,26 @@ export function ToolSearch({ toolSlug, placeholder, ville }: ToolSearchProps) {
             result.data &&
             result.data.length > 0 &&
             ResultComponent && (
-              <ResultComponent data={result.data as never[]} />
+              <>
+                <ResultComponent data={result.data as never[]} />
+                {TOOL_PRICES[toolSlug] && (
+                  <div className="mt-6 rounded-lg border border-primary/30 bg-primary/5 p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                      <p className="font-semibold">
+                        Obtenez le rapport complet
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {TOOL_PRICES[toolSlug].label} — {(TOOL_PRICES[toolSlug].amount / 100).toFixed(2)}$ CAD
+                      </p>
+                    </div>
+                    <CheckoutButton
+                      toolSlug={toolSlug}
+                      searchQuery={submittedQuery}
+                      className="w-full sm:w-auto"
+                    />
+                  </div>
+                )}
+              </>
             )}
         </>
       )}
