@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getAllTools, getAllCities } from "@/lib/tools/registry";
+import { SentryTest } from "@/components/sentry-test";
 import {
   Database,
   MapPin,
@@ -56,6 +57,8 @@ export default function HomePage() {
 
   return (
     <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
+      {/* TODO: Supprimer après test Sentry */}
+      <SentryTest />
       {/* Hero */}
       <section className="text-center space-y-4">
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
