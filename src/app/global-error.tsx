@@ -1,14 +1,13 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
+import NextError from "next/error";
 import { useEffect } from "react";
 
 export default function GlobalError({
   error,
-  reset,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
 }) {
   useEffect(() => {
     Sentry.captureException(error);
@@ -17,22 +16,7 @@ export default function GlobalError({
   return (
     <html lang="fr">
       <body>
-        <div style={{ padding: "2rem", textAlign: "center" }}>
-          <h2>Une erreur est survenue</h2>
-          <p style={{ color: "#666", marginTop: "0.5rem" }}>
-            Notre équipe a été notifiée.
-          </p>
-          <button
-            onClick={reset}
-            style={{
-              marginTop: "1rem",
-              padding: "0.5rem 1rem",
-              cursor: "pointer",
-            }}
-          >
-            Réessayer
-          </button>
-        </div>
+        <NextError statusCode={0} />
       </body>
     </html>
   );
