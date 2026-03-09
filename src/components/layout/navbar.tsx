@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Menu, X, Sun, Moon, Search } from "lucide-react";
+import { Menu, X, Sun, Moon, Search, ChevronDown } from "lucide-react";
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { SearchDialog } from "./search-dialog";
@@ -39,89 +39,124 @@ export function Navbar() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur-sm">
-      <nav className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="text-xl font-bold text-primary">
-          ClicZone
-        </Link>
+    <>
+      {/* Top accent bar */}
+      <div className="h-1 gold-gradient" />
 
-        {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-6">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
+        <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-navy text-white font-bold text-sm transition-transform group-hover:scale-105">
+              CZ
+            </div>
+            <div className="hidden sm:block">
+              <span className="text-lg font-bold tracking-tight text-foreground">
+                ClicZone
+              </span>
+              <span className="hidden lg:inline text-xs text-muted-foreground ml-2 border-l pl-2 border-border">
+                Données du Québec
+              </span>
+            </div>
+          </Link>
+
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-1">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-all"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Rechercher"
+              onClick={() => setSearchOpen(true)}
+              className="gap-2 text-muted-foreground"
             >
-              {link.label}
-            </Link>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Rechercher"
-            onClick={() => setSearchOpen(true)}
-          >
-            <Search className="h-5 w-5" aria-hidden="true" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleTheme}
-            aria-label="Changer le thème"
-          >
-            {dark ? (
-              <Sun className="h-5 w-5" aria-hidden="true" />
-            ) : (
-              <Moon className="h-5 w-5" aria-hidden="true" />
-            )}
-          </Button>
-          <Show when="signed-out">
-            <SignInButton mode="modal">
-              <Button variant="outline" size="sm" className="hidden sm:inline-flex">
-                Connexion
-              </Button>
-            </SignInButton>
-          </Show>
-          <Show when="signed-in">
-            <UserButton />
-          </Show>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Menu"
-          >
-            {mobileOpen ? (
-              <X className="h-6 w-6" aria-hidden="true" />
-            ) : (
-              <Menu className="h-6 w-6" aria-hidden="true" />
-            )}
-          </Button>
-        </div>
-      </nav>
-
-      {/* Mobile nav */}
-      {mobileOpen && (
-        <div className="md:hidden border-t bg-background px-4 py-4 space-y-3">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="block py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-              onClick={() => setMobileOpen(false)}
+              <Search className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden lg:inline text-xs">Rechercher</span>
+              <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                Ctrl K
+              </kbd>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              aria-label="Changer le thème"
             >
-              {link.label}
-            </Link>
-          ))}
-        </div>
-      )}
+              {dark ? (
+                <Sun className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Moon className="h-4 w-4" aria-hidden="true" />
+              )}
+            </Button>
+
+            <div className="hidden sm:flex items-center gap-1.5 ml-1 pl-1.5 border-l border-border">
+              <Show when="signed-out">
+                <SignInButton mode="modal">
+                  <Button size="sm" className="font-medium">
+                    Connexion
+                  </Button>
+                </SignInButton>
+              </Show>
+              <Show when="signed-in">
+                <UserButton />
+              </Show>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="Menu"
+            >
+              {mobileOpen ? (
+                <X className="h-5 w-5" aria-hidden="true" />
+              ) : (
+                <Menu className="h-5 w-5" aria-hidden="true" />
+              )}
+            </Button>
+          </div>
+        </nav>
+
+        {/* Mobile nav */}
+        {mobileOpen && (
+          <div className="md:hidden border-t bg-background px-4 py-3 space-y-1">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="block px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-all"
+                onClick={() => setMobileOpen(false)}
+              >
+                {link.label}
+              </Link>
+            ))}
+            <div className="pt-2 border-t mt-2">
+              <Show when="signed-out">
+                <SignInButton mode="modal">
+                  <Button size="sm" className="w-full font-medium">
+                    Connexion
+                  </Button>
+                </SignInButton>
+              </Show>
+            </div>
+          </div>
+        )}
+      </header>
 
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-    </header>
+    </>
   );
 }

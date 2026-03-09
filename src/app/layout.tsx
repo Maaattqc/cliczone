@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { DM_Sans, Instrument_Serif } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { frFR } from "@clerk/localizations";
 import "./globals.css";
@@ -8,10 +8,17 @@ import { Footer } from "@/components/layout/footer";
 import { JsonLd } from "@/components/seo/json-ld";
 import { generateOrganizationSchema } from "@/lib/seo/structured-data";
 
-const plusJakarta = Plus_Jakarta_Sans({
+const dmSans = DM_Sans({
   variable: "--font-sans",
   subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  weight: ["400"],
   display: "swap",
 });
 
@@ -35,7 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr-CA" suppressHydrationWarning>
-      <body className={`${plusJakarta.variable} antialiased`}>
+      <body className={`${dmSans.variable} ${instrumentSerif.variable} antialiased`}>
         <ClerkProvider localization={frFR}>
           <JsonLd data={generateOrganizationSchema()} />
           <Navbar />
