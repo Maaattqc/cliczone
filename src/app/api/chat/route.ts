@@ -397,15 +397,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // Block if a modification is pending approval
+    // Re-envoyer la modification en attente pour que le client réaffiche approve/reject
     if (pendingModification) {
       return NextResponse.json({
         response: JSON.stringify({
-          type: "text",
-          message:
-            "Une modification est en attente. Approuvez ou rejetez-la avant d'en demander une nouvelle.",
+          type: "modify",
+          description: "Modification en attente (approuvez ou rejetez avant de continuer)",
+          file: path.relative(process.cwd(), pendingModification.filePath).replace(/\\/g, "/"),
+          search: pendingModification.search,
+          replace: pendingModification.replace,
+          css_preview: null,
         }),
-        hasModification: false,
+        hasModification: true,
       });
     }
 
