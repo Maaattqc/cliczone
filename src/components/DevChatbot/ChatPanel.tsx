@@ -98,7 +98,11 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
         }),
       });
 
-      if (!res.ok) throw new Error("Erreur API");
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        console.error("Chat API error:", res.status, errText);
+        throw new Error("Erreur API");
+      }
       const data = await res.json();
       const { text, modification, diff, css_preview } = parseResponse(
         data.response || ""
@@ -177,7 +181,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed bottom-24 right-6 z-[9999] flex w-[360px] flex-col overflow-hidden rounded-2xl border border-[#2a3447] bg-[#0f1117] shadow-2xl shadow-black/40">
+    <div data-chatbot className="fixed bottom-24 right-6 z-[9999] flex w-[360px] flex-col overflow-hidden rounded-2xl border border-[#2a3447] bg-[#0f1117] shadow-2xl shadow-black/40">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[#2a3447] px-4 py-3">
         <div className="flex items-center gap-2.5">

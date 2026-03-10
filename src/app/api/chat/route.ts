@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
+export const dynamic = "force-dynamic";
+
 // Modification en attente d'approbation (pas encore écrite sur disque)
 let pendingModification: {
   filePath: string;
@@ -359,7 +361,22 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { messages, action, appContext, screenshot } = await req.json();
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch (parseErr) {
+      console.error("Body parse error:", parseErr);
+      return NextResponse.json(
+        { error: "Corps de requête invalide ou trop volumineux" },
+        { status: 400 }
+      );
+    }
+    const { messages = [], action, appContext, screenshot } = body as {
+      messages?: { role: string; content: string }[];
+      action?: string;
+      appContext?: Record<string, unknown>;
+      screenshot?: string;
+    };
 
     // Handle approve — NOW we write the file
     if (action === "approve") {
@@ -396,6 +413,10 @@ export async function POST(req: NextRequest) {
     const lastUserMessage =
       messages[messages.length - 1]?.content || "";
     const systemPrompt = buildSystemPrompt(projectRoot, lastUserMessage, appContext);
+
+    if (screenshot) {
+      console.log("Screenshot reçu:", Math.round(screenshot.length / 1024), "KB base64");
+    }
 
     // Build messages, injecting screenshot into the last user message if present
     const apiMessages = messages.map((m: { role: string; content: string }, i: number) => {
