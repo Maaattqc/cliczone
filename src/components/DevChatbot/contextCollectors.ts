@@ -186,10 +186,6 @@ export async function captureScreenshot(): Promise<string | null> {
   try {
     const html2canvas = (await import("html2canvas")).default;
 
-    // Cacher le chatbot pendant la capture
-    const chatEl = document.querySelector("[data-chatbot]") as HTMLElement | null;
-    if (chatEl) chatEl.style.display = "none";
-
     const canvas = await html2canvas(document.body, {
       scale: 0.35,
       logging: false,
@@ -198,14 +194,12 @@ export async function captureScreenshot(): Promise<string | null> {
       windowHeight: window.innerHeight,
       height: window.innerHeight,
       y: window.scrollY,
+      // Exclure le chatbot du screenshot sans toucher au DOM
+      ignoreElements: (el: Element) => el.hasAttribute("data-chatbot"),
     });
 
-    if (chatEl) chatEl.style.display = "";
-
-    // Compresser davantage — cibler < 500KB base64
     const base64 = canvas.toDataURL("image/jpeg", 0.4).split(",")[1];
 
-    // Si toujours trop gros (> 800KB), abandonner
     if (base64.length > 800_000) {
       console.warn("Screenshot trop volumineux, ignoré:", Math.round(base64.length / 1024), "KB");
       return null;
