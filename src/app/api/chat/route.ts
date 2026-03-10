@@ -220,6 +220,7 @@ function buildContextBlock(appContext: Record<string, unknown> | undefined): str
   const nav = appContext.navigation as { route?: string; title?: string; activeTab?: string | null } | undefined;
   const forms = appContext.forms as { id: string; fields: { name: string; type: string; value: string; placeholder: string; required: boolean; hasError: boolean }[] }[] | undefined;
   const tables = appContext.tables as { id: string; headers: string[]; rowCount: number; selectedRow: Record<string, string> | null }[] | undefined;
+  const buttons = appContext.buttons as { text: string; type: string | null; id: string; className: string; disabled: boolean }[] | undefined;
   const errors = appContext.errors as string[] | undefined;
   const activeElement = appContext.activeElement as { tag: string; id: string; name: string; type: string } | null | undefined;
   const appState = appContext.appState as Record<string, unknown> | undefined;
@@ -258,6 +259,17 @@ function buildContextBlock(appContext: Record<string, unknown> | undefined): str
         block += `\n    Ligne sélectionnée : ${JSON.stringify(table.selectedRow)}`;
       }
     }
+  }
+
+  // Buttons
+  if (buttons && buttons.length > 0) {
+    block += `\n- Boutons/liens visibles dans le viewport : ${buttons.length}`;
+    for (const btn of buttons.slice(0, 30)) {
+      const dis = btn.disabled ? " [disabled]" : "";
+      const id = btn.id ? ` #${btn.id}` : "";
+      block += `\n  - "${btn.text}"${id}${dis}`;
+    }
+    if (buttons.length > 30) block += `\n  - ... et ${buttons.length - 30} autres`;
   }
 
   // Errors
@@ -347,7 +359,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { messages, action, appContext } = await req.json();
+    const { messages, action, appContext, screenshot } = await req.json();
 
     // Handle approve — NOW we write the file
     if (action === "approve") {
@@ -385,6 +397,23 @@ export async function POST(req: NextRequest) {
       messages[messages.length - 1]?.content || "";
     const systemPrompt = buildSystemPrompt(projectRoot, lastUserMessage, appContext);
 
+    // Build messages, injecting screenshot into the last user message if present
+    const apiMessages = messages.map((m: { role: string; content: string }, i: number) => {
+      if (screenshot && i === messages.length - 1 && m.role === "user") {
+        return {
+          role: m.role,
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: "image/jpeg", data: screenshot },
+            },
+            { type: "text", text: m.content },
+          ],
+        };
+      }
+      return { role: m.role, content: m.content };
+    });
+
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -396,10 +425,7 @@ export async function POST(req: NextRequest) {
         model: "claude-sonnet-4-20250514",
         max_tokens: 4096,
         system: systemPrompt,
-        messages: messages.map((m: { role: string; content: string }) => ({
-          role: m.role,
-          content: m.content,
-        })),
+        messages: apiMessages,
       }),
     });
 

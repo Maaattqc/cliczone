@@ -27,6 +27,14 @@ export interface ElementSnapshot {
   type: string;
 }
 
+export interface ButtonSnapshot {
+  text: string;
+  type: string | null;
+  id: string;
+  className: string;
+  disabled: boolean;
+}
+
 export interface NavigationSnapshot {
   route: string;
   title: string;
@@ -45,6 +53,11 @@ function isVisible(el: HTMLElement): boolean {
     style.opacity !== "0" &&
     el.offsetParent !== null
   );
+}
+
+function isInViewport(el: Element): boolean {
+  const rect = el.getBoundingClientRect();
+  return rect.top >= 0 && rect.bottom <= window.innerHeight;
 }
 
 function sanitizeValue(value: string, fieldName: string, fieldType: string): string {
@@ -154,6 +167,37 @@ export function getActiveElement(): ElementSnapshot | null {
     name: (el as HTMLInputElement).name || "",
     type: (el as HTMLInputElement).type || "",
   };
+}
+
+export function getVisibleButtons(): ButtonSnapshot[] {
+  const elements = Array.from(document.querySelectorAll("button, a[href]"));
+  return elements
+    .filter((el) => isInViewport(el) && isVisible(el as HTMLElement))
+    .map((el) => ({
+      text: el.textContent?.trim() || "",
+      type: el.getAttribute("type"),
+      id: el.id,
+      className: el.className,
+      disabled: (el as HTMLButtonElement).disabled || false,
+    }));
+}
+
+export async function captureScreenshot(): Promise<string | null> {
+  try {
+    const html2canvas = (await import("html2canvas")).default;
+    const canvas = await html2canvas(document.body, {
+      scale: 0.5,
+      logging: false,
+      useCORS: true,
+      windowWidth: document.documentElement.scrollWidth,
+      windowHeight: window.innerHeight,
+      height: window.innerHeight,
+      y: window.scrollY,
+    });
+    return canvas.toDataURL("image/jpeg", 0.6).split(",")[1];
+  } catch {
+    return null;
+  }
 }
 
 export function getVisibleErrors(): string[] {

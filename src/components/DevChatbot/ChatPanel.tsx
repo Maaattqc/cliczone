@@ -25,7 +25,8 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
   const previewCleanupRef = useRef<(() => void) | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { collectContext } = useAppContext();
+  const { collectContext, captureScreenshot } = useAppContext();
+  const [screenshotEnabled, setScreenshotEnabled] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -79,6 +80,11 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
     setMessageCount((c) => c + 1);
 
     try {
+      let screenshot: string | null = null;
+      if (screenshotEnabled) {
+        screenshot = await captureScreenshot();
+      }
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -88,6 +94,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
             content: m.content,
           })),
           appContext: collectContext(),
+          ...(screenshot ? { screenshot } : {}),
         }),
       });
 
@@ -300,7 +307,21 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
 
       {/* Input */}
       <div className="border-t border-[#2a3447] p-3">
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setScreenshotEnabled((v) => !v)}
+            title={screenshotEnabled ? "Screenshot actif" : "Activer le screenshot"}
+            className={`shrink-0 rounded-lg p-2 text-sm transition-colors ${
+              screenshotEnabled
+                ? "bg-[#3b5bdb]/20 text-[#3b5bdb]"
+                : "text-gray-500 hover:bg-[#1e2433] hover:text-gray-300"
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
+          </button>
           <input
             ref={inputRef}
             value={input}
