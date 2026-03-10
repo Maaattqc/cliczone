@@ -7,6 +7,8 @@ import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { JsonLd } from "@/components/seo/json-ld";
 import { generateOrganizationSchema } from "@/lib/seo/structured-data";
+import { DevChatbot } from "@/components/DevChatbot";
+import { AppStateProvider } from "@/components/AppStateProvider";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -44,10 +46,13 @@ export default function RootLayout({
     <html lang="fr-CA" suppressHydrationWarning>
       <body className={`${dmSans.variable} ${instrumentSerif.variable} antialiased`}>
         <ClerkProvider localization={frFR}>
-          <JsonLd data={generateOrganizationSchema()} />
-          <Navbar />
-          {children}
-          <Footer />
+          <AppStateProvider>
+            <JsonLd data={generateOrganizationSchema()} />
+            <Navbar />
+            {children}
+            <Footer />
+            <DevChatbot />
+          </AppStateProvider>
         </ClerkProvider>
       </body>
     </html>

@@ -110,7 +110,7 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <Link href="/verifier-entrepreneur">
-                <Button size="lg" className="gap-2 font-medium px-6">
+                <Button size="lg" className="gap-2 font-medium px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white">
                   Commencer une recherche
                   <ArrowRight className="h-4 w-4" />
                 </Button>
