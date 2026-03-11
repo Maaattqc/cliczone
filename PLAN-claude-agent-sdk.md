@@ -32,7 +32,7 @@ ChatPanel.tsx (React)
 | `src/app/api/chat/stream/route.ts` | **CRÉER** — endpoint SSE avec le SDK agent | FAIT |
 | `src/app/api/chat/route.ts` | Modifier — garder seulement undo, supprimer l'ancien appel API | FAIT |
 | `src/components/DevChatbot/AgentSteps.tsx` | **CRÉER** — composant UI pour les étapes agent | FAIT |
-| `src/components/DevChatbot/ChatPanel.tsx` | Modifier — remplacer fetch par EventSource SSE | **À FAIRE** |
+| `src/components/DevChatbot/ChatPanel.tsx` | Modifier — remplacer fetch par EventSource SSE | FAIT |
 
 ---
 
@@ -61,12 +61,15 @@ npm install @anthropic-ai/claude-agent-sdk
 - Diffs affichés pour Edit/Write
 - Étapes Read/Grep/Glob collapsées par défaut
 
-## Étape 5 : Frontend SSE (ChatPanel.tsx) — À FAIRE
+## Étape 5 : Frontend SSE (ChatPanel.tsx) ✅
 
-- Remplacer `fetch("/api/chat")` par `fetch("/api/chat/stream")` + ReadableStream
-- Afficher les étapes en temps réel avec `AgentSteps`
-- Ajouter bouton "Annuler" (git checkout .) après chaque session agent
-- Supprimer l'ancien flow approve/reject (plus nécessaire — auto-execute)
+- Remplace `fetch("/api/chat")` par `fetch("/api/chat/stream")` + ReadableStream
+- Affiche les étapes en temps réel avec `AgentSteps`
+- Bouton "Annuler les modifications" (git checkout .) après chaque session agent
+- Bouton "Arreter" pour abort la requête en cours
+- Ancien flow approve/reject supprimé (auto-execute + undo)
+- Streaming tokens avec curseur animé
+- Métadonnées : tokens, coût, nombre de tours, timestamp
 
 ---
 

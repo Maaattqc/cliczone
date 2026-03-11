@@ -1,47 +1,25 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { injectPreviewCSS, clearAllPreviews, scopeCSSToSelector, previewDOMChange } from "./PreviewManager";
-import { CodeDiff, NewFilePreview } from "./CodeDiff";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppContext } from "./useAppContext";
 import { useElementInspector } from "./useElementInspector";
-
-interface ActionSummary {
-  type: "modify" | "create_file" | "install";
-  description: string;
-  file?: string;
-  packages?: string[];
-}
-
-interface DiffItem {
-  file: string;
-  search: string;
-  replace: string;
-}
-
-interface NewFileItem {
-  file: string;
-  content: string;
-}
+import { AgentSteps } from "./AgentSteps";
+import type { AgentStep } from "./AgentSteps";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
-  // Legacy single-action fields (compat with old localStorage)
-  modification?: { description: string; file: string } | null;
-  diff?: { file: string; search: string; replace: string } | null;
-  // New multi-action fields
-  actions?: ActionSummary[];
-  diffs?: DiffItem[];
-  newFiles?: NewFileItem[];
-  installPackages?: string[];
-  tokenUsage?: { input_tokens: number; output_tokens: number } | null;
+  steps?: AgentStep[];
+  usage?: { input_tokens: number; output_tokens: number } | null;
+  cost_usd?: number | null;
+  num_turns?: number | null;
+  filesModified?: boolean;
   timestamp?: string;
 }
 
 const MAX_MESSAGES = 50;
 const WARNING_THRESHOLD = 40;
-const STORAGE_KEY = "devchatbot-history";
+const STORAGE_KEY = "devchatbot-history-v2";
 
 function loadHistory(): { messages: Message[]; messageCount: number } {
   try {
@@ -58,18 +36,23 @@ function saveHistory(messages: Message[], messageCount: number) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, messageCount }));
   } catch {
-    // quota exceeded — silently fail
+    // quota exceeded
   }
 }
 
 function formatTimestamp(): string {
   const now = new Date();
   const day = now.getDate();
-  const months = ["jan", "fév", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"];
+  const months = ["jan", "fev", "mars", "avr", "mai", "juin", "juil", "aout", "sept", "oct", "nov", "dec"];
   const month = months[now.getMonth()];
   const hours = now.getHours().toString().padStart(2, "0");
   const minutes = now.getMinutes().toString().padStart(2, "0");
   return `${day} ${month} ${hours}:${minutes}`;
+}
+
+let stepIdCounter = 0;
+function nextStepId(): string {
+  return `step-${++stepIdCounter}`;
 }
 
 export function ChatPanel({ onClose }: { onClose: () => void }) {
@@ -77,19 +60,23 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [messageCount, setMessageCount] = useState(() => loadHistory().messageCount);
-  const [pendingApproval, setPendingApproval] = useState(false);
-  const [hasPreviewCSS, setHasPreviewCSS] = useState(false);
-  const previewCleanupRef = useRef<(() => void) | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [liveSteps, setLiveSteps] = useState<AgentStep[]>([]);
+  const [liveText, setLiveText] = useState("");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { collectContext, captureScreenshot } = useAppContext();
-  const [screenshotEnabled, setScreenshotEnabled] = useState(false);
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const liveStepsRef = useRef<AgentStep[]>([]);
+  const liveTextRef = useRef("");
+
+  const { collectContext } = useAppContext();
   const { inspectorEnabled, setInspectorEnabled, inspectedElement, clearInspection } = useElementInspector();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, liveSteps, liveText]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -102,247 +89,200 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
   function clearHistory() {
     setMessages([]);
     setMessageCount(0);
+    setCanUndo(false);
     localStorage.removeItem(STORAGE_KEY);
   }
 
-  function parseResponse(raw: string): {
-    text: string;
-    actions?: ActionSummary[];
-    diffs?: DiffItem[];
-    newFiles?: NewFileItem[];
-    installPackages?: string[];
-    css_preview?: string | null;
-  } {
-    try {
-      const cleaned = raw
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      const parsed = JSON.parse(cleaned);
-      const items: Record<string, unknown>[] = Array.isArray(parsed) ? parsed : [parsed];
-
-      // Single text response
-      if (items.length === 1 && items[0].type === "text") {
-        return { text: (items[0].message as string) || raw };
+  const handleAgentEvent = useCallback((data: Record<string, unknown>) => {
+    switch (data.type) {
+      case "text": {
+        const text = data.content as string || "";
+        liveTextRef.current += text;
+        setLiveText(liveTextRef.current);
+        break;
       }
 
-      const actions: ActionSummary[] = [];
-      const diffs: DiffItem[] = [];
-      const newFiles: NewFileItem[] = [];
-      const installPackages: string[] = [];
-      let css_preview: string | null = null;
+      case "text_delta": {
+        const delta = data.content as string || "";
+        liveTextRef.current += delta;
+        setLiveText(liveTextRef.current);
+        break;
+      }
 
-      for (const item of items) {
-        if (item.type === "modify") {
-          actions.push({
-            type: "modify",
-            description: item.description as string,
-            file: item.file as string,
-          });
-          diffs.push({
-            file: item.file as string,
-            search: item.search as string,
-            replace: item.replace as string,
-          });
-          if (item.css_preview && !css_preview) {
-            css_preview = item.css_preview as string;
+      case "tool_use": {
+        const step: AgentStep = {
+          id: nextStepId(),
+          type: "tool_use",
+          tool: data.tool as string,
+          input: data.input as Record<string, unknown> | undefined,
+          status: "running",
+        };
+        liveStepsRef.current = [...liveStepsRef.current, step];
+        setLiveSteps(liveStepsRef.current);
+        break;
+      }
+
+      case "tool_result": {
+        const updated = [...liveStepsRef.current];
+        for (let i = updated.length - 1; i >= 0; i--) {
+          if (updated[i].status === "running") {
+            updated[i] = { ...updated[i], status: "done" };
+            break;
           }
-        } else if (item.type === "create_file") {
-          actions.push({
-            type: "create_file",
-            description: item.description as string,
-            file: item.file as string,
-          });
-          newFiles.push({
-            file: item.file as string,
-            content: item.content as string,
-          });
-        } else if (item.type === "install") {
-          const pkgs = item.packages as string[];
-          actions.push({
-            type: "install",
-            description: item.description as string,
-            packages: pkgs,
-          });
-          installPackages.push(...pkgs);
         }
+        liveStepsRef.current = updated;
+        setLiveSteps(updated);
+        break;
       }
 
-      if (actions.length === 0) return { text: raw };
+      case "file_changed":
+        setCanUndo(true);
+        break;
 
-      return {
-        text: "",
-        actions,
-        diffs: diffs.length > 0 ? diffs : undefined,
-        newFiles: newFiles.length > 0 ? newFiles : undefined,
-        installPackages: installPackages.length > 0 ? installPackages : undefined,
-        css_preview,
-      };
-    } catch {
-      return { text: raw };
+      case "error": {
+        const errStep: AgentStep = {
+          id: nextStepId(),
+          type: "error",
+          content: data.message as string || "Erreur inconnue",
+          status: "done",
+        };
+        liveStepsRef.current = [...liveStepsRef.current, errStep];
+        setLiveSteps(liveStepsRef.current);
+        break;
+      }
+
+      default:
+        break;
     }
-  }
+  }, []);
 
   async function sendMessage(content: string) {
     if (!content.trim() || isLoading || messageCount >= MAX_MESSAGES) return;
 
     const userMessage: Message = { role: "user", content: content.trim() };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
     setMessageCount((c) => c + 1);
+    liveStepsRef.current = [];
+    liveTextRef.current = "";
+    setLiveSteps([]);
+    setLiveText("");
+    setCanUndo(false);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
-      let screenshot: string | null = null;
-      if (screenshotEnabled) {
-        screenshot = await captureScreenshot();
-      }
-
-      const res = await fetch("/api/chat", {
+      const res = await fetch("/api/chat/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: newMessages.map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
+          prompt: content.trim(),
           appContext: { ...collectContext(), inspectedElement: inspectedElement || null },
-          ...(screenshot ? { screenshot } : {}),
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
-        console.error("Chat API error:", res.status, errText);
+        console.error("Stream API error:", res.status, errText);
         throw new Error("Erreur API");
       }
-      const data = await res.json();
-      const { text, actions, diffs, newFiles, installPackages, css_preview } = parseResponse(
-        data.response || ""
-      );
 
-      if (data.hasModification && actions && actions.length > 0) {
-        setPendingApproval(true);
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let resultData: Record<string, unknown> | null = null;
 
-        // CSS preview — only for single modify action
-        let scopedPreview = css_preview;
-        if (scopedPreview && inspectedElement?.cssSelector) {
-          scopedPreview = scopeCSSToSelector(scopedPreview, inspectedElement.cssSelector);
-        }
-        if (scopedPreview) {
-          const cleanup = injectPreviewCSS(scopedPreview);
-          previewCleanupRef.current = cleanup;
-          setHasPreviewCSS(true);
-        }
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-        // DOM text preview — only for single modify action without CSS preview
-        let hasDOMPreview = false;
-        if (!scopedPreview && inspectedElement?.cssSelector && diffs && diffs.length === 1) {
-          const domCleanup = previewDOMChange(inspectedElement.cssSelector, diffs[0].replace);
-          if (domCleanup) {
-            previewCleanupRef.current = domCleanup;
-            setHasPreviewCSS(true);
-            hasDOMPreview = true;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === "result") {
+              resultData = data;
+            } else {
+              handleAgentEvent(data);
+            }
+          } catch {
+            // skip malformed SSE
           }
         }
+      }
 
-        const description = actions.map((a) => a.description).filter(Boolean).join(" + ");
+      // Finalize: build assistant message from refs (always up-to-date)
+      const finalSteps = liveStepsRef.current;
+      const finalText = liveTextRef.current;
 
-        setMessages([
-          ...newMessages,
-          {
-            role: "assistant",
-            content: description,
-            actions,
-            diffs: (scopedPreview || hasDOMPreview) ? undefined : diffs,
-            newFiles,
-            installPackages,
-            tokenUsage: data.usage || null,
-            timestamp: formatTimestamp(),
-          },
+      const assistantMsg: Message = {
+        role: "assistant",
+        content: finalText || (finalSteps.length > 0 ? "" : "Aucune reponse."),
+        steps: finalSteps.length > 0
+          ? finalSteps.map((s) => ({ ...s, status: "done" as const }))
+          : undefined,
+        usage: resultData?.usage as { input_tokens: number; output_tokens: number } | undefined || null,
+        cost_usd: resultData?.cost_usd as number | undefined || null,
+        num_turns: resultData?.num_turns as number | undefined || null,
+        filesModified: (resultData?.files_modified as boolean) || false,
+        timestamp: formatTimestamp(),
+      };
+
+      setMessages((prev) => [...prev, assistantMsg]);
+      liveStepsRef.current = [];
+      liveTextRef.current = "";
+      setLiveSteps([]);
+      setLiveText("");
+    } catch (err) {
+      if ((err as Error).name === "AbortError") {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "Requete annulee.", timestamp: formatTimestamp() },
         ]);
       } else {
-        setMessages([
-          ...newMessages,
-          { role: "assistant", content: text || data.response, tokenUsage: data.usage || null, timestamp: formatTimestamp() },
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "Erreur de connexion. Reessayez.", timestamp: formatTimestamp() },
         ]);
       }
-    } catch {
-      setMessages([
-        ...newMessages,
-        {
-          role: "assistant",
-          content: "Erreur de connexion. Réessayez.",
-        },
-      ]);
+      setLiveSteps([]);
+      setLiveText("");
     } finally {
       setIsLoading(false);
+      abortRef.current = null;
       clearInspection();
     }
   }
 
-  async function handleApproval(approved: boolean) {
-    setPendingApproval(false);
-
-    if (!approved) {
-      // Reject: remove preview immediately
-      if (previewCleanupRef.current) {
-        previewCleanupRef.current();
-        previewCleanupRef.current = null;
-      }
-      clearAllPreviews();
-      setHasPreviewCSS(false);
+  async function handleUndo() {
+    try {
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "undo" }),
+      });
+      setCanUndo(false);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Modifications annulees (git checkout).", timestamp: formatTimestamp() },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Erreur lors de l'annulation.", timestamp: formatTimestamp() },
+      ]);
     }
+  }
 
-    await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: approved ? "approve" : "reject" }),
-    });
-
-    if (approved) {
-      // Keep preview CSS visible until Next.js Hot Reload finishes.
-      // Listen for the HMR "idle" status which means compilation + apply is done.
-      const cleanupPreview = () => {
-        if (previewCleanupRef.current) {
-          previewCleanupRef.current();
-          previewCleanupRef.current = null;
-        }
-        clearAllPreviews();
-        setHasPreviewCSS(false);
-      };
-
-      const hmr = (module as unknown as { hot?: { status: () => string; addStatusHandler: (cb: (status: string) => void) => void; removeStatusHandler: (cb: (status: string) => void) => void } }).hot;
-      if (hmr) {
-        let wasApplying = false;
-        const handler = (status: string) => {
-          if (status === "apply") wasApplying = true;
-          if (wasApplying && status === "idle") {
-            hmr.removeStatusHandler(handler);
-            // Small delay to let the DOM re-render with new styles
-            setTimeout(cleanupPreview, 200);
-          }
-        };
-        hmr.addStatusHandler(handler);
-        // Safety timeout in case HMR never fires (e.g. no-op change, error)
-        setTimeout(() => {
-          hmr.removeStatusHandler(handler);
-          cleanupPreview();
-        }, 30000);
-      } else {
-        // No HMR available (production), just clean up after a short delay
-        setTimeout(cleanupPreview, 2000);
-      }
-    }
-
-    const statusMsg: Message = {
-      role: "assistant",
-      content: approved
-        ? "Modification approuvée et écrite dans le fichier."
-        : "Modification rejetée.",
-    };
-    setMessages((prev) => [...prev, statusMsg]);
+  function handleStop() {
+    abortRef.current?.abort();
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -353,15 +293,15 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div data-chatbot className="fixed bottom-24 right-6 z-[9999] flex w-[360px] flex-col overflow-hidden rounded-2xl border border-[#2a3447] bg-[#0f1117] shadow-2xl shadow-black/40">
+    <div data-chatbot className="fixed bottom-24 right-6 z-[9999] flex w-[380px] flex-col overflow-hidden rounded-2xl border border-[#2a3447] bg-[#0f1117] shadow-2xl shadow-black/40">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[#2a3447] px-4 py-3">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#3b5bdb] text-sm">
-            ⚡
+            {"//"}
           </div>
           <span className="text-sm font-semibold text-white">
-            Éditeur live
+            Claude Agent
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -381,17 +321,10 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
             onClick={onClose}
             className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-[#1e2433] hover:text-white"
           >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -407,10 +340,10 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
       )}
 
       {/* Messages */}
-      <div className="flex max-h-[400px] min-h-[200px] flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
-        {messages.length === 0 && (
+      <div className="flex max-h-[450px] min-h-[200px] flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+        {messages.length === 0 && !isLoading && (
           <p className="py-8 text-center text-sm text-gray-500">
-            Décrivez un changement sur le site.
+            Decrivez un changement sur le site.
             <br />
             <span className="text-gray-600">
               Ex: &quot;Rends le bouton plus gros et bleu&quot;
@@ -418,108 +351,72 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
           </p>
         )}
 
-        {messages.map((msg, i) => {
-          const hasActions = msg.actions && msg.actions.length > 0;
-          const hasModification = hasActions || !!msg.modification;
-
-          return (
+        {messages.map((msg, i) => (
           <div
             key={i}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
-            <div className="flex max-w-[85%] flex-col">
-              <div
-                className={`rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-[#3b5bdb] text-white"
-                    : hasModification
-                      ? "border border-green-500/30 bg-green-500/10 text-green-300"
-                      : "bg-[#1e2433] text-gray-300"
-                }`}
-              >
-                {hasActions ? (
-                  <div>
-                    <div className="mb-1 font-medium">{msg.content}</div>
-                    {msg.actions!.map((act, j) => (
-                      <div key={j} className="text-xs text-green-400/70">
-                        {act.type === "modify" && <span>Modifie : {act.file}</span>}
-                        {act.type === "create_file" && <span>Crée : {act.file}</span>}
-                        {act.type === "install" && <span>Installe : {act.packages?.join(", ")}</span>}
-                      </div>
-                    ))}
-                    {msg.diffs?.map((d, j) => (
-                      <CodeDiff key={`d-${j}`} file={d.file} search={d.search} replace={d.replace} />
-                    ))}
-                    {msg.newFiles?.map((nf, j) => (
-                      <NewFilePreview key={`nf-${j}`} file={nf.file} content={nf.content} />
-                    ))}
-                    {msg.installPackages && msg.installPackages.length > 0 && (
-                      <div className="my-2 rounded-lg border border-[#2a3447] bg-[#0d1017] px-3 py-2 text-xs font-mono text-gray-300">
-                        $ npm install {msg.installPackages.join(" ")}
-                      </div>
-                    )}
-                  </div>
-                ) : msg.modification ? (
-                  <div>
-                    <div className="mb-1 font-medium">{msg.content}</div>
-                    <div className="text-xs text-green-400/70">
-                      {msg.modification.file}
+            <div className="flex max-w-[90%] flex-col">
+              {msg.role === "user" ? (
+                <div className="rounded-xl bg-[#3b5bdb] px-3.5 py-2.5 text-sm leading-relaxed text-white">
+                  {msg.content}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {/* Agent steps */}
+                  {msg.steps && msg.steps.length > 0 && (
+                    <AgentSteps steps={msg.steps} />
+                  )}
+                  {/* Text response */}
+                  {msg.content && (
+                    <div className={`rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                      msg.filesModified
+                        ? "border border-green-500/30 bg-green-500/10 text-green-300"
+                        : "bg-[#1e2433] text-gray-300"
+                    }`}>
+                      {msg.content}
                     </div>
-                    {msg.diff && (
-                      <CodeDiff
-                        file={msg.diff.file}
-                        search={msg.diff.search}
-                        replace={msg.diff.replace}
-                      />
-                    )}
-                  </div>
-                ) : (
-                  msg.content
-                )}
-              </div>
-              {msg.role === "assistant" && (msg.tokenUsage || msg.timestamp) && (
+                  )}
+                </div>
+              )}
+              {/* Meta info */}
+              {msg.role === "assistant" && (msg.usage || msg.timestamp || msg.cost_usd) && (
                 <div className="mt-0.5 flex items-center gap-2 text-[10px] text-gray-600">
-                  {msg.tokenUsage && (
+                  {msg.usage && (
                     <span>
-                      {msg.tokenUsage.input_tokens + msg.tokenUsage.output_tokens} tokens
-                      ({msg.tokenUsage.input_tokens}↓ {msg.tokenUsage.output_tokens}↑)
+                      {msg.usage.input_tokens + msg.usage.output_tokens} tokens
                     </span>
+                  )}
+                  {msg.cost_usd != null && msg.cost_usd > 0 && (
+                    <span>${msg.cost_usd.toFixed(4)}</span>
+                  )}
+                  {msg.num_turns != null && msg.num_turns > 0 && (
+                    <span>{msg.num_turns} tours</span>
                   )}
                   {msg.timestamp && <span>{msg.timestamp}</span>}
                 </div>
               )}
             </div>
           </div>
-          );
-        })}
+        ))}
 
-        {/* Preview indicator + Approve/Reject buttons */}
-        {pendingApproval && !isLoading && (
-          <div className="flex flex-col gap-2">
-            {hasPreviewCSS && (
-              <div className="flex items-center gap-2 rounded-lg bg-blue-500/10 border border-blue-500/30 px-3 py-1.5 text-xs text-blue-300">
-                <span className="inline-block h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
-                Preview active — vérifiez le résultat sur la page
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleApproval(true)}
-                className="flex-1 rounded-xl bg-green-600 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
-              >
-                Approuver
-              </button>
-              <button
-                onClick={() => handleApproval(false)}
-                className="flex-1 rounded-xl bg-red-600/80 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
-              >
-                Rejeter
-              </button>
+        {/* Live streaming: show steps + text as they arrive */}
+        {isLoading && (liveSteps.length > 0 || liveText) && (
+          <div className="flex justify-start">
+            <div className="flex max-w-[90%] flex-col gap-2">
+              {liveSteps.length > 0 && <AgentSteps steps={liveSteps} />}
+              {liveText && (
+                <div className="rounded-xl bg-[#1e2433] px-3.5 py-2.5 text-sm leading-relaxed text-gray-300">
+                  {liveText}
+                  <span className="inline-block h-3 w-1 animate-pulse bg-gray-400 ml-0.5" />
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {isLoading && (
+        {/* Loading indicator (when no steps/text yet) */}
+        {isLoading && liveSteps.length === 0 && !liveText && (
           <div className="flex justify-start">
             <div className="rounded-xl bg-[#1e2433] px-3.5 py-2.5">
               <div className="flex gap-1">
@@ -528,6 +425,30 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-500 [animation-delay:300ms]" />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Stop button */}
+        {isLoading && (
+          <div className="flex justify-center">
+            <button
+              onClick={handleStop}
+              className="rounded-lg border border-[#2a3447] bg-[#1e2433] px-3 py-1.5 text-xs text-gray-400 transition-colors hover:bg-[#2a3447] hover:text-white"
+            >
+              Arreter
+            </button>
+          </div>
+        )}
+
+        {/* Undo button */}
+        {canUndo && !isLoading && (
+          <div className="flex justify-center">
+            <button
+              onClick={handleUndo}
+              className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300 transition-colors hover:bg-amber-500/20"
+            >
+              Annuler les modifications
+            </button>
           </div>
         )}
 
@@ -570,7 +491,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setInspectorEnabled((v) => !v)}
-            title={inspectorEnabled ? "Inspecteur actif" : "Activer l'inspecteur d'éléments"}
+            title={inspectorEnabled ? "Inspecteur actif" : "Activer l'inspecteur d'elements"}
             className={`shrink-0 rounded-lg p-2 text-sm transition-colors ${
               inspectorEnabled
                 ? "bg-amber-500/20 text-amber-400"
@@ -587,51 +508,21 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
               <line x1="20" y1="12" x2="22" y2="12" />
             </svg>
           </button>
-          <button
-            onClick={() => setScreenshotEnabled((v) => !v)}
-            title={screenshotEnabled ? "Screenshot actif" : "Activer le screenshot"}
-            className={`shrink-0 rounded-lg p-2 text-sm transition-colors ${
-              screenshotEnabled
-                ? "bg-[#3b5bdb]/20 text-[#3b5bdb]"
-                : "text-gray-500 hover:bg-[#1e2433] hover:text-gray-300"
-            }`}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
-              <circle cx="12" cy="13" r="4" />
-            </svg>
-          </button>
           <input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={
-              pendingApproval
-                ? "Approuvez ou rejetez d'abord..."
-                : "Décrivez un changement..."
-            }
-            disabled={isLoading || pendingApproval || messageCount >= MAX_MESSAGES}
+            placeholder="Decrivez un changement..."
+            disabled={isLoading || messageCount >= MAX_MESSAGES}
             className="flex-1 rounded-xl border border-[#2a3447] bg-[#161d2e] px-3.5 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#3b5bdb] disabled:opacity-50"
           />
           <button
             onClick={() => sendMessage(input)}
-            disabled={
-              !input.trim() ||
-              isLoading ||
-              pendingApproval ||
-              messageCount >= MAX_MESSAGES
-            }
+            disabled={!input.trim() || isLoading || messageCount >= MAX_MESSAGES}
             className="rounded-xl bg-[#3b5bdb] px-3.5 py-2.5 text-white transition-colors hover:bg-[#364fc7] disabled:opacity-40"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
             </svg>
           </button>

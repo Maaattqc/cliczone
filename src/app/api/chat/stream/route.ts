@@ -258,14 +258,7 @@ export async function POST(req: NextRequest) {
 
           // Result (final)
           if (message.type === "result") {
-            const result = message as {
-              type: string;
-              subtype: string;
-              total_cost_usd?: number;
-              num_turns?: number;
-              duration_ms?: number;
-              usage?: { input_tokens: number; output_tokens: number };
-            };
+            const result = message as unknown as Record<string, unknown>;
             send({
               type: "result",
               subtype: result.subtype,

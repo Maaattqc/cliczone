@@ -97,24 +97,24 @@ function StepItem({ step, isExpanded, onToggle }: { step: AgentStep; isExpanded:
 
       {(isExpanded || defaultExpanded) && step.input && (
         <div className="border-t border-[#2a3447]">
-          {step.tool === "Edit" && step.input.old_string && step.input.new_string && (
+          {step.tool === "Edit" && step.input.old_string && step.input.new_string ? (
             <CodeDiff
               file={((step.input.file_path || "") as string).split("/").slice(-2).join("/")}
               search={step.input.old_string as string}
               replace={step.input.new_string as string}
             />
-          )}
-          {step.tool === "Write" && step.input.content && (
+          ) : null}
+          {step.tool === "Write" && step.input.content ? (
             <NewFilePreview
               file={((step.input.file_path || "") as string).split("/").slice(-2).join("/")}
               content={(step.input.content as string).slice(0, 2000)}
             />
-          )}
-          {step.tool === "Bash" && step.input.command && (
+          ) : null}
+          {step.tool === "Bash" && step.input.command ? (
             <div className="px-3 py-2 text-xs font-mono text-gray-300 bg-[#0d1017]">
               $ {step.input.command as string}
             </div>
-          )}
+          ) : null}
           {step.tool === "Read" && (
             <div className="px-3 py-1.5 text-[10px] text-gray-500">
               {(step.input.file_path || "") as string}
