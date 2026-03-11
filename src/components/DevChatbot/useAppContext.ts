@@ -8,7 +8,7 @@ import {
   getVisibleErrors,
   captureScreenshot,
 } from "./contextCollectors";
-import type { ButtonSnapshot } from "./contextCollectors";
+import type { ButtonSnapshot, InspectedElementSnapshot } from "./contextCollectors";
 
 export interface AppContext {
   navigation: ReturnType<typeof getNavigation>;
@@ -19,6 +19,7 @@ export interface AppContext {
   activeElement: ReturnType<typeof getActiveElement>;
   errors: string[];
   timestamp: string;
+  inspectedElement?: InspectedElementSnapshot | null;
 }
 
 export function useAppContext() {

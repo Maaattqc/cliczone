@@ -1,25 +1,82 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { injectPreviewCSS, clearAllPreviews } from "./PreviewManager";
-import { CodeDiff } from "./CodeDiff";
+import { injectPreviewCSS, clearAllPreviews, scopeCSSToSelector, previewDOMChange } from "./PreviewManager";
+import { CodeDiff, NewFilePreview } from "./CodeDiff";
 import { useAppContext } from "./useAppContext";
+import { useElementInspector } from "./useElementInspector";
+
+interface ActionSummary {
+  type: "modify" | "create_file" | "install";
+  description: string;
+  file?: string;
+  packages?: string[];
+}
+
+interface DiffItem {
+  file: string;
+  search: string;
+  replace: string;
+}
+
+interface NewFileItem {
+  file: string;
+  content: string;
+}
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  // Legacy single-action fields (compat with old localStorage)
   modification?: { description: string; file: string } | null;
   diff?: { file: string; search: string; replace: string } | null;
+  // New multi-action fields
+  actions?: ActionSummary[];
+  diffs?: DiffItem[];
+  newFiles?: NewFileItem[];
+  installPackages?: string[];
+  tokenUsage?: { input_tokens: number; output_tokens: number } | null;
+  timestamp?: string;
 }
 
 const MAX_MESSAGES = 50;
 const WARNING_THRESHOLD = 40;
+const STORAGE_KEY = "devchatbot-history";
+
+function loadHistory(): { messages: Message[]; messageCount: number } {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { messages: [], messageCount: 0 };
+    const data = JSON.parse(raw);
+    return { messages: data.messages || [], messageCount: data.messageCount || 0 };
+  } catch {
+    return { messages: [], messageCount: 0 };
+  }
+}
+
+function saveHistory(messages: Message[], messageCount: number) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, messageCount }));
+  } catch {
+    // quota exceeded — silently fail
+  }
+}
+
+function formatTimestamp(): string {
+  const now = new Date();
+  const day = now.getDate();
+  const months = ["jan", "fév", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"];
+  const month = months[now.getMonth()];
+  const hours = now.getHours().toString().padStart(2, "0");
+  const minutes = now.getMinutes().toString().padStart(2, "0");
+  return `${day} ${month} ${hours}:${minutes}`;
+}
 
 export function ChatPanel({ onClose }: { onClose: () => void }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => loadHistory().messages);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [messageCount, setMessageCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(() => loadHistory().messageCount);
   const [pendingApproval, setPendingApproval] = useState(false);
   const [hasPreviewCSS, setHasPreviewCSS] = useState(false);
   const previewCleanupRef = useRef<(() => void) | null>(null);
@@ -27,6 +84,8 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { collectContext, captureScreenshot } = useAppContext();
   const [screenshotEnabled, setScreenshotEnabled] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const { inspectorEnabled, setInspectorEnabled, inspectedElement, clearInspection } = useElementInspector();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -36,10 +95,22 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
     inputRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    saveHistory(messages, messageCount);
+  }, [messages, messageCount]);
+
+  function clearHistory() {
+    setMessages([]);
+    setMessageCount(0);
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
   function parseResponse(raw: string): {
     text: string;
-    modification?: { description: string; file: string };
-    diff?: { file: string; search: string; replace: string };
+    actions?: ActionSummary[];
+    diffs?: DiffItem[];
+    newFiles?: NewFileItem[];
+    installPackages?: string[];
     css_preview?: string | null;
   } {
     try {
@@ -48,22 +119,65 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
         .replace(/```\n?/g, "")
         .trim();
       const parsed = JSON.parse(cleaned);
-      if (parsed.type === "text") return { text: parsed.message || raw };
-      if (parsed.type === "modify")
-        return {
-          text: "",
-          modification: {
-            description: parsed.description,
-            file: parsed.file,
-          },
-          diff: {
-            file: parsed.file,
-            search: parsed.search,
-            replace: parsed.replace,
-          },
-          css_preview: parsed.css_preview || null,
-        };
-      return { text: raw };
+      const items: Record<string, unknown>[] = Array.isArray(parsed) ? parsed : [parsed];
+
+      // Single text response
+      if (items.length === 1 && items[0].type === "text") {
+        return { text: (items[0].message as string) || raw };
+      }
+
+      const actions: ActionSummary[] = [];
+      const diffs: DiffItem[] = [];
+      const newFiles: NewFileItem[] = [];
+      const installPackages: string[] = [];
+      let css_preview: string | null = null;
+
+      for (const item of items) {
+        if (item.type === "modify") {
+          actions.push({
+            type: "modify",
+            description: item.description as string,
+            file: item.file as string,
+          });
+          diffs.push({
+            file: item.file as string,
+            search: item.search as string,
+            replace: item.replace as string,
+          });
+          if (item.css_preview && !css_preview) {
+            css_preview = item.css_preview as string;
+          }
+        } else if (item.type === "create_file") {
+          actions.push({
+            type: "create_file",
+            description: item.description as string,
+            file: item.file as string,
+          });
+          newFiles.push({
+            file: item.file as string,
+            content: item.content as string,
+          });
+        } else if (item.type === "install") {
+          const pkgs = item.packages as string[];
+          actions.push({
+            type: "install",
+            description: item.description as string,
+            packages: pkgs,
+          });
+          installPackages.push(...pkgs);
+        }
+      }
+
+      if (actions.length === 0) return { text: raw };
+
+      return {
+        text: "",
+        actions,
+        diffs: diffs.length > 0 ? diffs : undefined,
+        newFiles: newFiles.length > 0 ? newFiles : undefined,
+        installPackages: installPackages.length > 0 ? installPackages : undefined,
+        css_preview,
+      };
     } catch {
       return { text: raw };
     }
@@ -93,7 +207,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
             role: m.role,
             content: m.content,
           })),
-          appContext: collectContext(),
+          appContext: { ...collectContext(), inspectedElement: inspectedElement || null },
           ...(screenshot ? { screenshot } : {}),
         }),
       });
@@ -104,34 +218,54 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
         throw new Error("Erreur API");
       }
       const data = await res.json();
-      const { text, modification, diff, css_preview } = parseResponse(
+      const { text, actions, diffs, newFiles, installPackages, css_preview } = parseResponse(
         data.response || ""
       );
 
-      if (data.hasModification && modification) {
+      if (data.hasModification && actions && actions.length > 0) {
         setPendingApproval(true);
 
-        // CSS preview path — inject instantly
-        if (css_preview) {
-          const cleanup = injectPreviewCSS(css_preview);
+        // CSS preview — only for single modify action
+        let scopedPreview = css_preview;
+        if (scopedPreview && inspectedElement?.cssSelector) {
+          scopedPreview = scopeCSSToSelector(scopedPreview, inspectedElement.cssSelector);
+        }
+        if (scopedPreview) {
+          const cleanup = injectPreviewCSS(scopedPreview);
           previewCleanupRef.current = cleanup;
           setHasPreviewCSS(true);
         }
+
+        // DOM text preview — only for single modify action without CSS preview
+        let hasDOMPreview = false;
+        if (!scopedPreview && inspectedElement?.cssSelector && diffs && diffs.length === 1) {
+          const domCleanup = previewDOMChange(inspectedElement.cssSelector, diffs[0].replace);
+          if (domCleanup) {
+            previewCleanupRef.current = domCleanup;
+            setHasPreviewCSS(true);
+            hasDOMPreview = true;
+          }
+        }
+
+        const description = actions.map((a) => a.description).filter(Boolean).join(" + ");
 
         setMessages([
           ...newMessages,
           {
             role: "assistant",
-            content: modification.description,
-            modification,
-            // Only show diff inline when there's no CSS preview
-            diff: css_preview ? null : diff,
+            content: description,
+            actions,
+            diffs: (scopedPreview || hasDOMPreview) ? undefined : diffs,
+            newFiles,
+            installPackages,
+            tokenUsage: data.usage || null,
+            timestamp: formatTimestamp(),
           },
         ]);
       } else {
         setMessages([
           ...newMessages,
-          { role: "assistant", content: text || data.response },
+          { role: "assistant", content: text || data.response, tokenUsage: data.usage || null, timestamp: formatTimestamp() },
         ]);
       }
     } catch {
@@ -144,25 +278,63 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
       ]);
     } finally {
       setIsLoading(false);
+      clearInspection();
     }
   }
 
   async function handleApproval(approved: boolean) {
     setPendingApproval(false);
 
-    // Remove CSS preview if active
-    if (previewCleanupRef.current) {
-      previewCleanupRef.current();
-      previewCleanupRef.current = null;
+    if (!approved) {
+      // Reject: remove preview immediately
+      if (previewCleanupRef.current) {
+        previewCleanupRef.current();
+        previewCleanupRef.current = null;
+      }
+      clearAllPreviews();
+      setHasPreviewCSS(false);
     }
-    clearAllPreviews();
-    setHasPreviewCSS(false);
 
     await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: approved ? "approve" : "reject" }),
     });
+
+    if (approved) {
+      // Keep preview CSS visible until Next.js Hot Reload finishes.
+      // Listen for the HMR "idle" status which means compilation + apply is done.
+      const cleanupPreview = () => {
+        if (previewCleanupRef.current) {
+          previewCleanupRef.current();
+          previewCleanupRef.current = null;
+        }
+        clearAllPreviews();
+        setHasPreviewCSS(false);
+      };
+
+      const hmr = (module as unknown as { hot?: { status: () => string; addStatusHandler: (cb: (status: string) => void) => void; removeStatusHandler: (cb: (status: string) => void) => void } }).hot;
+      if (hmr) {
+        let wasApplying = false;
+        const handler = (status: string) => {
+          if (status === "apply") wasApplying = true;
+          if (wasApplying && status === "idle") {
+            hmr.removeStatusHandler(handler);
+            // Small delay to let the DOM re-render with new styles
+            setTimeout(cleanupPreview, 200);
+          }
+        };
+        hmr.addStatusHandler(handler);
+        // Safety timeout in case HMR never fires (e.g. no-op change, error)
+        setTimeout(() => {
+          hmr.removeStatusHandler(handler);
+          cleanupPreview();
+        }, 30000);
+      } else {
+        // No HMR available (production), just clean up after a short delay
+        setTimeout(cleanupPreview, 2000);
+      }
+    }
 
     const statusMsg: Message = {
       role: "assistant",
@@ -192,10 +364,23 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
             Éditeur live
           </span>
         </div>
-        <button
-          onClick={onClose}
-          className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-[#1e2433] hover:text-white"
-        >
+        <div className="flex items-center gap-1">
+          {messages.length > 0 && (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              title="Effacer l'historique"
+              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-[#1e2433] hover:text-white"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-[#1e2433] hover:text-white"
+          >
           <svg
             width="16"
             height="16"
@@ -207,7 +392,19 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
+        </div>
       </div>
+
+      {/* Clear history confirmation */}
+      {showClearConfirm && (
+        <div className="flex items-center gap-2 border-b border-[#2a3447] bg-[#1a1f2e] px-4 py-2 text-xs text-gray-300">
+          <span>Effacer tout l&apos;historique ?</span>
+          <button onClick={() => { clearHistory(); setShowClearConfirm(false); }}
+            className="rounded bg-red-600 px-2 py-1 text-white hover:bg-red-700">Oui</button>
+          <button onClick={() => setShowClearConfirm(false)}
+            className="rounded bg-[#2a3447] px-2 py-1 text-gray-300 hover:bg-[#3a4457]">Non</button>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex max-h-[400px] min-h-[200px] flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
@@ -221,40 +418,80 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
           </p>
         )}
 
-        {messages.map((msg, i) => (
+        {messages.map((msg, i) => {
+          const hasActions = msg.actions && msg.actions.length > 0;
+          const hasModification = hasActions || !!msg.modification;
+
+          return (
           <div
             key={i}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
-            <div
-              className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-[#3b5bdb] text-white"
-                  : msg.modification
-                    ? "border border-green-500/30 bg-green-500/10 text-green-300"
-                    : "bg-[#1e2433] text-gray-300"
-              }`}
-            >
-              {msg.modification ? (
-                <div>
-                  <div className="mb-1 font-medium">{msg.content}</div>
-                  <div className="text-xs text-green-400/70">
-                    {msg.modification.file}
+            <div className="flex max-w-[85%] flex-col">
+              <div
+                className={`rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                  msg.role === "user"
+                    ? "bg-[#3b5bdb] text-white"
+                    : hasModification
+                      ? "border border-green-500/30 bg-green-500/10 text-green-300"
+                      : "bg-[#1e2433] text-gray-300"
+                }`}
+              >
+                {hasActions ? (
+                  <div>
+                    <div className="mb-1 font-medium">{msg.content}</div>
+                    {msg.actions!.map((act, j) => (
+                      <div key={j} className="text-xs text-green-400/70">
+                        {act.type === "modify" && <span>Modifie : {act.file}</span>}
+                        {act.type === "create_file" && <span>Crée : {act.file}</span>}
+                        {act.type === "install" && <span>Installe : {act.packages?.join(", ")}</span>}
+                      </div>
+                    ))}
+                    {msg.diffs?.map((d, j) => (
+                      <CodeDiff key={`d-${j}`} file={d.file} search={d.search} replace={d.replace} />
+                    ))}
+                    {msg.newFiles?.map((nf, j) => (
+                      <NewFilePreview key={`nf-${j}`} file={nf.file} content={nf.content} />
+                    ))}
+                    {msg.installPackages && msg.installPackages.length > 0 && (
+                      <div className="my-2 rounded-lg border border-[#2a3447] bg-[#0d1017] px-3 py-2 text-xs font-mono text-gray-300">
+                        $ npm install {msg.installPackages.join(" ")}
+                      </div>
+                    )}
                   </div>
-                  {msg.diff && (
-                    <CodeDiff
-                      file={msg.diff.file}
-                      search={msg.diff.search}
-                      replace={msg.diff.replace}
-                    />
+                ) : msg.modification ? (
+                  <div>
+                    <div className="mb-1 font-medium">{msg.content}</div>
+                    <div className="text-xs text-green-400/70">
+                      {msg.modification.file}
+                    </div>
+                    {msg.diff && (
+                      <CodeDiff
+                        file={msg.diff.file}
+                        search={msg.diff.search}
+                        replace={msg.diff.replace}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  msg.content
+                )}
+              </div>
+              {msg.role === "assistant" && (msg.tokenUsage || msg.timestamp) && (
+                <div className="mt-0.5 flex items-center gap-2 text-[10px] text-gray-600">
+                  {msg.tokenUsage && (
+                    <span>
+                      {msg.tokenUsage.input_tokens + msg.tokenUsage.output_tokens} tokens
+                      ({msg.tokenUsage.input_tokens}↓ {msg.tokenUsage.output_tokens}↑)
+                    </span>
                   )}
+                  {msg.timestamp && <span>{msg.timestamp}</span>}
                 </div>
-              ) : (
-                msg.content
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
 
         {/* Preview indicator + Approve/Reject buttons */}
         {pendingApproval && !isLoading && (
@@ -262,7 +499,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
             {hasPreviewCSS && (
               <div className="flex items-center gap-2 rounded-lg bg-blue-500/10 border border-blue-500/30 px-3 py-1.5 text-xs text-blue-300">
                 <span className="inline-block h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
-                Preview CSS active — vérifiez le résultat sur la page
+                Preview active — vérifiez le résultat sur la page
               </div>
             )}
             <div className="flex gap-2">
@@ -309,9 +546,47 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
+      {/* Inspected element indicator */}
+      {inspectedElement && (
+        <div className="mx-3 mt-2 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300">
+          <span className="truncate">
+            &lt;{inspectedElement.tag}&gt;
+            {inspectedElement.id && `#${inspectedElement.id}`}
+            {inspectedElement.classes.slice(0, 2).map(c => `.${c}`).join("")}
+          </span>
+          <button
+            onClick={clearInspection}
+            className="ml-auto shrink-0 rounded p-0.5 text-amber-400 hover:bg-amber-500/20"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Input */}
       <div className="border-t border-[#2a3447] p-3">
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setInspectorEnabled((v) => !v)}
+            title={inspectorEnabled ? "Inspecteur actif" : "Activer l'inspecteur d'éléments"}
+            className={`shrink-0 rounded-lg p-2 text-sm transition-colors ${
+              inspectorEnabled
+                ? "bg-amber-500/20 text-amber-400"
+                : "text-gray-500 hover:bg-[#1e2433] hover:text-gray-300"
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="6" />
+              <circle cx="12" cy="12" r="2" />
+              <line x1="12" y1="2" x2="12" y2="4" />
+              <line x1="12" y1="20" x2="12" y2="22" />
+              <line x1="2" y1="12" x2="4" y2="12" />
+              <line x1="20" y1="12" x2="22" y2="12" />
+            </svg>
+          </button>
           <button
             onClick={() => setScreenshotEnabled((v) => !v)}
             title={screenshotEnabled ? "Screenshot actif" : "Activer le screenshot"}
