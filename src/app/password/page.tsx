@@ -66,7 +66,7 @@ function PasswordForm() {
 
 export default function PasswordPage() {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background px-4">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-2">
           <h1 className="font-serif text-3xl text-foreground">ClicZone</h1>
