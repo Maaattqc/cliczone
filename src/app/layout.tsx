@@ -44,6 +44,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr-CA" suppressHydrationWarning>
+      <head>
+        <meta charSet="utf-8" />
+      </head>
       <body className={`${dmSans.variable} ${instrumentSerif.variable} antialiased`}>
         <ClerkProvider localization={frFR}>
           <AppStateProvider>

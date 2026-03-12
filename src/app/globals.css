@@ -169,6 +169,148 @@
   background: linear-gradient(90deg, hsl(36 80% 46%), hsl(42 85% 65%), hsl(36 80% 46%));
 }
 
+/* Chatbot — glass panel */
+.chatbot-glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 40px 80px -15px rgba(0, 0, 0, 0.5),
+    0 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.03);
+  animation: chatbot-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Noise texture overlay (::before) */
+.chatbot-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0.02;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Animated gradient mesh behind content */
+.chatbot-mesh {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+.chatbot-mesh::before {
+  content: "";
+  position: absolute;
+  inset: -60%;
+  background: conic-gradient(
+    from 180deg at 50% 50%,
+    #0c1a2e 0deg,
+    #0f3d5c 60deg,
+    #0e4a4a 120deg,
+    #0f2840 180deg,
+    #164e6e 240deg,
+    #0c3048 300deg,
+    #0c1a2e 360deg
+  );
+  animation: chatbot-mesh-spin 12s linear infinite;
+  opacity: 0.85;
+}
+.chatbot-mesh::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 25% 15%, rgba(56, 189, 248, 0.22) 0%, transparent 55%),
+              radial-gradient(ellipse at 75% 75%, rgba(45, 212, 191, 0.16) 0%, transparent 55%),
+              radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+@keyframes chatbot-mesh-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes chatbot-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Inner glass elements */
+.chatbot-glass-inner {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.chatbot-glass-input {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+.chatbot-glass-input:focus-within {
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 3px rgba(56, 189, 248, 0.08),
+    0 0 20px -5px rgba(56, 189, 248, 0.15);
+}
+
+/* Send button shimmer */
+.chatbot-btn-send {
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+.chatbot-btn-send:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px -4px rgba(56, 189, 248, 0.4);
+}
+.chatbot-btn-send::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: chatbot-shimmer 3s ease-in-out infinite;
+}
+@keyframes chatbot-shimmer {
+  0%, 100% { left: -100%; }
+  50% { left: 150%; }
+}
+
+/* Scrollbar */
+.chatbot-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.chatbot-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chatbot-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+}
+.chatbot-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.chatbot-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
 /* Subtle noise texture */
 .texture-noise {
   position: relative;

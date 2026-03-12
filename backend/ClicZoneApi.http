@@ -1,0 +1,6 @@
+@ClicZoneApi_HostAddress = http://localhost:5011
+
+GET {{ClicZoneApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

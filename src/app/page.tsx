@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +19,9 @@ import {
   Users,
   Home,
   BarChart3,
+  Mail,
+  Bell,
+  Sparkles,
 } from "lucide-react";
 
 const categories = [
@@ -89,6 +95,20 @@ export default function HomePage() {
   const tools = getAllTools();
   const cities = getAllCities();
 
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  function handleNewsletter(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email) return;
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      setSubmitted(true);
+    }, 800);
+  }
+
   return (
     <main>
       {/* Hero */}
@@ -110,13 +130,13 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <Link href="/verifier-entrepreneur">
-                <Button size="lg" className="gap-2 font-medium px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white">
+                <Button size="lg" className="gap-2 font-semibold px-7 bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-500 hover:from-indigo-700 hover:via-blue-700 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 border-0">
                   Commencer une recherche
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
               <Link href="/a-propos">
-                <Button variant="outline" size="lg" className="font-medium px-6 bg-red-500 text-white hover:bg-red-600 border-red-500 hover:border-red-600">
+                <Button variant="outline" size="lg" className="font-semibold px-7 border-2 border-foreground/20 hover:border-foreground/40 hover:bg-foreground/5 text-foreground transition-all duration-300">
                   En savoir plus
                 </Button>
               </Link>
@@ -297,6 +317,91 @@ export default function HomePage() {
                 {city.name}
               </Link>
             ))}
+          </div>
+        </section>
+
+        {/* Newsletter */}
+        <section aria-label="Infolettre" className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-blue-600 to-blue-800 p-8 md:p-12">
+          <div className="absolute inset-0 opacity-10"
+            style={{ backgroundImage: "radial-gradient(circle at 70% 50%, white 1px, transparent 1px)", backgroundSize: "28px 28px" }}
+          />
+          <div className="relative max-w-2xl mx-auto text-center space-y-6">
+            <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 mx-auto">
+              <Bell className="h-7 w-7 text-white" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <Sparkles className="h-4 w-4 text-blue-200" />
+                <span className="text-sm font-medium text-blue-200 uppercase tracking-wider">Nouveautés ClicZone</span>
+                <Sparkles className="h-4 w-4 text-blue-200" />
+              </div>
+              <h2 className="font-serif text-3xl md:text-4xl font-normal tracking-tight text-white">
+                Restez informé des nouvelles données
+              </h2>
+              <p className="text-blue-100 text-base md:text-lg leading-relaxed">
+                Recevez en avant-première les nouveaux outils, les mises à jour des registres officiels
+                et les guides pratiques directement dans votre boîte courriel.
+              </p>
+            </div>
+
+            {submitted ? (
+              <div className="flex items-center justify-center gap-3 bg-white/15 backdrop-blur-sm rounded-xl px-6 py-4 text-white font-medium">
+                <CheckCircle2 className="h-5 w-5 text-emerald-300 shrink-0" />
+                Merci ! Vous êtes maintenant inscrit à l&apos;infolettre.
+              </div>
+            ) : (
+              <form onSubmit={handleNewsletter} className="space-y-3">
+                <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+                  <div className="relative flex-1">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-300 pointer-events-none" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="votre@courriel.com"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/15 backdrop-blur-sm border border-white/25 text-white placeholder:text-blue-200 focus:outline-none focus:ring-2 focus:ring-white/40 focus:border-white/50 transition-all text-sm"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-shrink-0 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white text-blue-700 font-semibold text-sm hover:bg-blue-50 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg"
+                  >
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                        </svg>
+                        Envoi…
+                      </span>
+                    ) : (
+                      <>
+                        S&apos;inscrire
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-blue-200">
+                  Aucun spam. Désabonnement en un clic. Vos données restent privées.
+                </p>
+              </form>
+            )}
+
+            <div className="flex items-center justify-center gap-6 pt-2">
+              {[
+                { icon: Users, label: "2 000+ abonnés" },
+                { icon: Shield, label: "Aucun spam" },
+                { icon: Clock, label: "1 courriel / semaine" },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-1.5 text-xs text-blue-200">
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       </div>

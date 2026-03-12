@@ -35,9 +35,7 @@ function loadHistory(): { messages: Message[]; messageCount: number } {
 function saveHistory(messages: Message[], messageCount: number) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, messageCount }));
-  } catch {
-    // quota exceeded
-  }
+  } catch {}
 }
 
 function formatTimestamp(): string {
@@ -78,13 +76,9 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, liveSteps, liveText]);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
-  useEffect(() => {
-    saveHistory(messages, messageCount);
-  }, [messages, messageCount]);
+  useEffect(() => { saveHistory(messages, messageCount); }, [messages, messageCount]);
 
   function clearHistory() {
     setMessages([]);
@@ -96,23 +90,18 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
   const handleAgentEvent = useCallback((data: Record<string, unknown>) => {
     switch (data.type) {
       case "text": {
-        const text = data.content as string || "";
-        liveTextRef.current += text;
+        liveTextRef.current += (data.content as string || "");
         setLiveText(liveTextRef.current);
         break;
       }
-
       case "text_delta": {
-        const delta = data.content as string || "";
-        liveTextRef.current += delta;
+        liveTextRef.current += (data.content as string || "");
         setLiveText(liveTextRef.current);
         break;
       }
-
       case "tool_use": {
         const step: AgentStep = {
-          id: nextStepId(),
-          type: "tool_use",
+          id: nextStepId(), type: "tool_use",
           tool: data.tool as string,
           input: data.input as Record<string, unknown> | undefined,
           status: "running",
@@ -121,7 +110,6 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
         setLiveSteps(liveStepsRef.current);
         break;
       }
-
       case "tool_result": {
         const updated = [...liveStepsRef.current];
         for (let i = updated.length - 1; i >= 0; i--) {
@@ -134,15 +122,10 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
         setLiveSteps(updated);
         break;
       }
-
-      case "file_changed":
-        setCanUndo(true);
-        break;
-
+      case "file_changed": setCanUndo(true); break;
       case "error": {
         const errStep: AgentStep = {
-          id: nextStepId(),
-          type: "error",
+          id: nextStepId(), type: "error",
           content: data.message as string || "Erreur inconnue",
           status: "done",
         };
@@ -150,15 +133,12 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
         setLiveSteps(liveStepsRef.current);
         break;
       }
-
-      default:
-        break;
+      default: break;
     }
   }, []);
 
   async function sendMessage(content: string) {
     if (!content.trim() || isLoading || messageCount >= MAX_MESSAGES) return;
-
     const userMessage: Message = { role: "user", content: content.trim() };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
@@ -183,12 +163,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
         }),
         signal: controller.signal,
       });
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        console.error("Stream API error:", res.status, errText);
-        throw new Error("Erreur API");
-      }
+      if (!res.ok) throw new Error("Erreur API");
 
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
@@ -198,60 +173,39 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n\n");
         buffer = lines.pop() || "";
-
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           try {
             const data = JSON.parse(line.slice(6));
-            if (data.type === "result") {
-              resultData = data;
-            } else {
-              handleAgentEvent(data);
-            }
-          } catch {
-            // skip malformed SSE
-          }
+            if (data.type === "result") resultData = data;
+            else handleAgentEvent(data);
+          } catch { /* skip */ }
         }
       }
 
-      // Finalize: build assistant message from refs (always up-to-date)
       const finalSteps = liveStepsRef.current;
       const finalText = liveTextRef.current;
-
       const assistantMsg: Message = {
         role: "assistant",
         content: finalText || (finalSteps.length > 0 ? "" : "Aucune reponse."),
-        steps: finalSteps.length > 0
-          ? finalSteps.map((s) => ({ ...s, status: "done" as const }))
-          : undefined,
+        steps: finalSteps.length > 0 ? finalSteps.map((s) => ({ ...s, status: "done" as const })) : undefined,
         usage: resultData?.usage as { input_tokens: number; output_tokens: number } | undefined || null,
         cost_usd: resultData?.cost_usd as number | undefined || null,
         num_turns: resultData?.num_turns as number | undefined || null,
         filesModified: (resultData?.files_modified as boolean) || false,
         timestamp: formatTimestamp(),
       };
-
       setMessages((prev) => [...prev, assistantMsg]);
       liveStepsRef.current = [];
       liveTextRef.current = "";
       setLiveSteps([]);
       setLiveText("");
     } catch (err) {
-      if ((err as Error).name === "AbortError") {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: "Requete annulee.", timestamp: formatTimestamp() },
-        ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: "Erreur de connexion. Reessayez.", timestamp: formatTimestamp() },
-        ]);
-      }
+      const msg = (err as Error).name === "AbortError" ? "Requete annulee." : "Erreur de connexion. Reessayez.";
+      setMessages((prev) => [...prev, { role: "assistant", content: msg, timestamp: formatTimestamp() }]);
       setLiveSteps([]);
       setLiveText("");
     } finally {
@@ -269,49 +223,45 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
         body: JSON.stringify({ action: "undo" }),
       });
       setCanUndo(false);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Modifications annulees (git checkout).", timestamp: formatTimestamp() },
-      ]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "Modifications annulees.", timestamp: formatTimestamp() }]);
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Erreur lors de l'annulation.", timestamp: formatTimestamp() },
-      ]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "Erreur lors de l'annulation.", timestamp: formatTimestamp() }]);
     }
-  }
-
-  function handleStop() {
-    abortRef.current?.abort();
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(input);
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
   }
 
   return (
-    <div data-chatbot className="fixed bottom-24 right-6 z-[9999] flex w-[380px] flex-col overflow-hidden rounded-2xl border border-[#2a3447] bg-[#0f1117] shadow-2xl shadow-black/40">
+    <div data-chatbot className="chatbot-glass fixed bottom-24 right-6 z-[9999] flex w-[400px] flex-col overflow-hidden rounded-[20px]">
+
+      {/* Animated gradient mesh — gives the glass something to refract */}
+      <div className="chatbot-mesh" />
+
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-[#2a3447] px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#3b5bdb] text-sm">
-            {"//"}
+      <div className="relative z-10 flex items-center justify-between px-5 py-3.5">
+        <div className="flex items-center gap-3">
+          <div className="relative flex h-[30px] w-[30px] items-center justify-center rounded-[10px] chatbot-glass-inner">
+            <span className="text-[13px] font-bold text-white/90">M</span>
+            {isLoading && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400/60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-400" />
+              </span>
+            )}
           </div>
-          <span className="text-sm font-semibold text-white">
-            Claude Agent
+          <span className="text-[13px] font-semibold tracking-[-0.01em] text-white/90">
+            Mat Agent
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center">
           {messages.length > 0 && (
             <button
               onClick={() => setShowClearConfirm(true)}
-              title="Effacer l'historique"
-              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-[#1e2433] hover:text-white"
+              className="rounded-lg p-1.5 text-white/30 transition-colors hover:bg-white/[0.08] hover:text-white/70"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <polyline points="3 6 5 6 21 6" />
                 <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
               </svg>
@@ -319,80 +269,75 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
           )}
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-[#1e2433] hover:text-white"
+            className="rounded-lg p-1.5 text-white/30 transition-colors hover:bg-white/[0.08] hover:text-white/70"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
         </div>
       </div>
 
-      {/* Clear history confirmation */}
+      {/* Separator */}
+      <div className="relative z-10 mx-4 h-px bg-gradient-to-r from-transparent via-white/[0.15] to-transparent" />
+
+      {/* Clear confirm */}
       {showClearConfirm && (
-        <div className="flex items-center gap-2 border-b border-[#2a3447] bg-[#1a1f2e] px-4 py-2 text-xs text-gray-300">
-          <span>Effacer tout l&apos;historique ?</span>
-          <button onClick={() => { clearHistory(); setShowClearConfirm(false); }}
-            className="rounded bg-red-600 px-2 py-1 text-white hover:bg-red-700">Oui</button>
-          <button onClick={() => setShowClearConfirm(false)}
-            className="rounded bg-[#2a3447] px-2 py-1 text-gray-300 hover:bg-[#3a4457]">Non</button>
+        <div className="relative z-10 flex items-center justify-between border-b border-white/[0.06] px-5 py-2.5 text-[12px]">
+          <span className="text-white/50">Tout effacer ?</span>
+          <div className="flex gap-1.5">
+            <button onClick={() => { clearHistory(); setShowClearConfirm(false); }}
+              className="rounded-md bg-red-500/15 px-2.5 py-1 text-red-300/90 transition-colors hover:bg-red-500/25">Oui</button>
+            <button onClick={() => setShowClearConfirm(false)}
+              className="rounded-md chatbot-glass-inner px-2.5 py-1 text-white/50 transition-colors hover:bg-white/[0.1]">Non</button>
+          </div>
         </div>
       )}
 
       {/* Messages */}
-      <div className="flex max-h-[450px] min-h-[200px] flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+      <div className="chatbot-scroll relative z-10 flex max-h-[480px] min-h-[200px] flex-1 flex-col gap-3.5 overflow-y-auto px-4 py-4">
+
         {messages.length === 0 && !isLoading && (
-          <p className="py-8 text-center text-sm text-gray-500">
-            Decrivez un changement sur le site.
-            <br />
-            <span className="text-gray-600">
-              Ex: &quot;Rends le bouton plus gros et bleu&quot;
-            </span>
-          </p>
+          <div className="flex flex-col items-center gap-3 py-12">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl chatbot-glass-inner">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/40">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="text-[13px] text-white/50 font-medium">Decrivez un changement</p>
+              <p className="mt-1 text-[11px] text-white/25">Ex: Rends le bouton plus gros</p>
+            </div>
+          </div>
         )}
 
         {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div className="flex max-w-[90%] flex-col">
+          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className="flex max-w-[88%] flex-col">
               {msg.role === "user" ? (
-                <div className="rounded-xl bg-[#3b5bdb] px-3.5 py-2.5 text-sm leading-relaxed text-white">
+                <div className="rounded-[14px] rounded-br-[6px] chatbot-glass-inner px-3.5 py-2.5 text-[13px] leading-[1.55] text-white/90">
                   {msg.content}
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {/* Agent steps */}
-                  {msg.steps && msg.steps.length > 0 && (
-                    <AgentSteps steps={msg.steps} />
-                  )}
-                  {/* Text response */}
+                  {msg.steps && msg.steps.length > 0 && <AgentSteps steps={msg.steps} />}
                   {msg.content && (
-                    <div className={`rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                    <div className={`rounded-[14px] rounded-bl-[6px] px-3.5 py-2.5 text-[13px] leading-[1.55] ${
                       msg.filesModified
-                        ? "border border-green-500/30 bg-green-500/10 text-green-300"
-                        : "bg-[#1e2433] text-gray-300"
+                        ? "bg-emerald-400/[0.08] text-emerald-200/90 ring-1 ring-inset ring-emerald-400/15"
+                        : "text-white/80"
                     }`}>
                       {msg.content}
                     </div>
                   )}
                 </div>
               )}
-              {/* Meta info */}
-              {msg.role === "assistant" && (msg.usage || msg.timestamp || msg.cost_usd) && (
-                <div className="mt-0.5 flex items-center gap-2 text-[10px] text-gray-600">
-                  {msg.usage && (
-                    <span>
-                      {msg.usage.input_tokens + msg.usage.output_tokens} tokens
-                    </span>
-                  )}
-                  {msg.cost_usd != null && msg.cost_usd > 0 && (
-                    <span>${msg.cost_usd.toFixed(4)}</span>
-                  )}
-                  {msg.num_turns != null && msg.num_turns > 0 && (
-                    <span>{msg.num_turns} tours</span>
-                  )}
+              {msg.role === "assistant" && (msg.usage || msg.timestamp) && (
+                <div className="mt-1 flex items-center gap-2 px-1 text-[10px] text-white/25 font-mono">
+                  {msg.usage && <span>{msg.usage.input_tokens + msg.usage.output_tokens}</span>}
+                  {msg.cost_usd != null && msg.cost_usd > 0 && <span>${msg.cost_usd.toFixed(3)}</span>}
                   {msg.timestamp && <span>{msg.timestamp}</span>}
                 </div>
               )}
@@ -400,54 +345,50 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
           </div>
         ))}
 
-        {/* Live streaming: show steps + text as they arrive */}
+        {/* Live stream */}
         {isLoading && (liveSteps.length > 0 || liveText) && (
           <div className="flex justify-start">
-            <div className="flex max-w-[90%] flex-col gap-2">
+            <div className="flex max-w-[88%] flex-col gap-2">
               {liveSteps.length > 0 && <AgentSteps steps={liveSteps} />}
               {liveText && (
-                <div className="rounded-xl bg-[#1e2433] px-3.5 py-2.5 text-sm leading-relaxed text-gray-300">
+                <div className="rounded-[14px] rounded-bl-[6px] px-3.5 py-2.5 text-[13px] leading-[1.55] text-white/75">
                   {liveText}
-                  <span className="inline-block h-3 w-1 animate-pulse bg-gray-400 ml-0.5" />
+                  <span className="ml-0.5 inline-block h-[13px] w-[1.5px] animate-pulse rounded-full bg-cyan-400/50 align-text-bottom" />
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Loading indicator (when no steps/text yet) */}
+        {/* Loading dots */}
         {isLoading && liveSteps.length === 0 && !liveText && (
           <div className="flex justify-start">
-            <div className="rounded-xl bg-[#1e2433] px-3.5 py-2.5">
-              <div className="flex gap-1">
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-500 [animation-delay:0ms]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-500 [animation-delay:150ms]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-500 [animation-delay:300ms]" />
+            <div className="rounded-[14px] rounded-bl-[6px] chatbot-glass-inner px-4 py-3">
+              <div className="flex gap-[5px]">
+                <span className="h-[5px] w-[5px] animate-bounce rounded-full bg-cyan-400/40 [animation-delay:0ms]" />
+                <span className="h-[5px] w-[5px] animate-bounce rounded-full bg-cyan-400/40 [animation-delay:150ms]" />
+                <span className="h-[5px] w-[5px] animate-bounce rounded-full bg-cyan-400/40 [animation-delay:300ms]" />
               </div>
             </div>
           </div>
         )}
 
-        {/* Stop button */}
+        {/* Stop */}
         {isLoading && (
-          <div className="flex justify-center">
-            <button
-              onClick={handleStop}
-              className="rounded-lg border border-[#2a3447] bg-[#1e2433] px-3 py-1.5 text-xs text-gray-400 transition-colors hover:bg-[#2a3447] hover:text-white"
-            >
-              Arreter
+          <div className="flex justify-center pt-1">
+            <button onClick={() => abortRef.current?.abort()}
+              className="rounded-full chatbot-glass-inner px-4 py-1.5 text-[11px] text-white/40 transition-all hover:bg-white/[0.1] hover:text-white/70">
+              Stop
             </button>
           </div>
         )}
 
-        {/* Undo button */}
+        {/* Undo */}
         {canUndo && !isLoading && (
-          <div className="flex justify-center">
-            <button
-              onClick={handleUndo}
-              className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300 transition-colors hover:bg-amber-500/20"
-            >
-              Annuler les modifications
+          <div className="flex justify-center pt-1">
+            <button onClick={handleUndo}
+              className="rounded-full chatbot-glass-inner px-4 py-1.5 text-[11px] text-white/40 transition-all hover:bg-white/[0.1] hover:text-white/70">
+              Annuler
             </button>
           </div>
         )}
@@ -455,31 +396,29 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Rate limit */}
+      {/* Limits */}
       {messageCount >= WARNING_THRESHOLD && messageCount < MAX_MESSAGES && (
-        <div className="mx-4 mb-2 rounded-lg bg-yellow-900/30 px-3 py-1.5 text-xs text-yellow-400">
-          {MAX_MESSAGES - messageCount} messages restants
+        <div className="relative z-10 mx-4 mb-2 rounded-lg chatbot-glass-inner px-3 py-1.5 text-[11px] text-amber-300/60">
+          {MAX_MESSAGES - messageCount} restants
         </div>
       )}
       {messageCount >= MAX_MESSAGES && (
-        <div className="mx-4 mb-2 rounded-lg bg-red-900/30 px-3 py-1.5 text-xs text-red-400">
-          Limite atteinte. Rechargez la page.
+        <div className="relative z-10 mx-4 mb-2 rounded-lg bg-red-500/10 px-3 py-1.5 text-[11px] text-red-300/70">
+          Limite atteinte.
         </div>
       )}
 
-      {/* Inspected element indicator */}
+      {/* Inspected element */}
       {inspectedElement && (
-        <div className="mx-3 mt-2 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300">
+        <div className="relative z-10 mx-4 mb-1 flex items-center gap-2 rounded-xl chatbot-glass-inner px-3 py-2 text-[11px] text-white/40 font-mono">
           <span className="truncate">
             &lt;{inspectedElement.tag}&gt;
             {inspectedElement.id && `#${inspectedElement.id}`}
             {inspectedElement.classes.slice(0, 2).map(c => `.${c}`).join("")}
           </span>
-          <button
-            onClick={clearInspection}
-            className="ml-auto shrink-0 rounded p-0.5 text-amber-400 hover:bg-amber-500/20"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <button onClick={clearInspection}
+            className="ml-auto shrink-0 rounded p-0.5 text-white/30 transition-colors hover:text-white/60">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
@@ -487,25 +426,21 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
       )}
 
       {/* Input */}
-      <div className="border-t border-[#2a3447] p-3">
-        <div className="flex items-center gap-2">
+      <div className="relative z-10 p-3 pt-2">
+        <div className="flex items-center gap-2 rounded-[14px] chatbot-glass-input px-1.5 py-1">
           <button
             onClick={() => setInspectorEnabled((v) => !v)}
-            title={inspectorEnabled ? "Inspecteur actif" : "Activer l'inspecteur d'elements"}
-            className={`shrink-0 rounded-lg p-2 text-sm transition-colors ${
+            title="Inspecteur"
+            className={`shrink-0 rounded-[10px] p-2 transition-all ${
               inspectorEnabled
-                ? "bg-amber-500/20 text-amber-400"
-                : "text-gray-500 hover:bg-[#1e2433] hover:text-gray-300"
+                ? "bg-white/[0.12] text-cyan-300/80"
+                : "text-white/25 hover:text-white/50 hover:bg-white/[0.06]"
             }`}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <circle cx="12" cy="12" r="6" />
               <circle cx="12" cy="12" r="2" />
-              <line x1="12" y1="2" x2="12" y2="4" />
-              <line x1="12" y1="20" x2="12" y2="22" />
-              <line x1="2" y1="12" x2="4" y2="12" />
-              <line x1="20" y1="12" x2="22" y2="12" />
             </svg>
           </button>
           <input
@@ -515,15 +450,15 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
             onKeyDown={handleKeyDown}
             placeholder="Decrivez un changement..."
             disabled={isLoading || messageCount >= MAX_MESSAGES}
-            className="flex-1 rounded-xl border border-[#2a3447] bg-[#161d2e] px-3.5 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#3b5bdb] disabled:opacity-50"
+            className="min-w-0 flex-1 bg-transparent py-1.5 text-[13px] text-white/85 placeholder-white/30 outline-none disabled:opacity-30"
           />
           <button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || isLoading || messageCount >= MAX_MESSAGES}
-            className="rounded-xl bg-[#3b5bdb] px-3.5 py-2.5 text-white transition-colors hover:bg-[#364fc7] disabled:opacity-40"
+            className="chatbot-btn-send shrink-0 rounded-[10px] p-2 text-white disabled:opacity-20"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
           </button>
         </div>

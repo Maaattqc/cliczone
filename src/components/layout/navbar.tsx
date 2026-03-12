@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Menu, X, Sun, Moon, Search, ChevronDown } from "lucide-react";
+import { Menu, X, Sun, Moon, Search } from "lucide-react";
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { SearchDialog } from "./search-dialog";
@@ -47,7 +47,7 @@ export function Navbar() {
         <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-navy text-white font-bold text-sm transition-transform group-hover:scale-105">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-700 text-white font-bold text-sm transition-transform group-hover:scale-105 shadow-sm">
               CZ
             </div>
             <div className="hidden sm:block">
@@ -75,7 +75,7 @@ export function Navbar() {
 
           {/* Actions */}
           <div className="flex items-center gap-1.5">
-            <Button
+<Button
               variant="ghost"
               size="sm"
               aria-label="Rechercher"
@@ -104,7 +104,7 @@ export function Navbar() {
             <div className="hidden sm:flex items-center gap-1.5 ml-1 pl-1.5 border-l border-border">
               <Show when="signed-out">
                 <SignInButton mode="modal">
-                  <Button size="sm" className="font-medium">
+                  <Button size="sm" className="font-medium bg-blue-700 hover:bg-blue-800 text-white border-0 shadow-sm">
                     Connexion
                   </Button>
                 </SignInButton>
@@ -146,7 +146,7 @@ export function Navbar() {
             <div className="pt-2 border-t mt-2">
               <Show when="signed-out">
                 <SignInButton mode="modal">
-                  <Button size="sm" className="w-full font-medium">
+                  <Button size="sm" className="w-full font-medium bg-blue-700 hover:bg-blue-800 text-white border-0">
                     Connexion
                   </Button>
                 </SignInButton>
