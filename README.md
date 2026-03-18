@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ClicZone
 
-## Getting Started
+> Plateforme SaaS de micro-outils basés sur les données ouvertes du Québec — vérification d'entrepreneurs, zones inondables, terrains contaminés, garderies, et plus.
 
-First, run the development server:
+![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=flat&logo=next.js&logoColor=white)
+![React](https://img.shields.io/badge/React_19-61DAFB?style=flat&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat&logo=tailwindcss&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=flat&logo=supabase&logoColor=white)
+![Stripe](https://img.shields.io/badge/Stripe-008CDD?style=flat&logo=stripe&logoColor=white)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Pourquoi ce projet
+
+Les données publiques du Québec (RBQ, MELCCFP, ministères) sont éparpillées et difficiles d'accès pour le citoyen moyen. ClicZone regroupe ces données en micro-outils simples : vérifier un entrepreneur, savoir si un terrain est contaminé, trouver une garderie, comparer des salaires — le tout sur une seule plateforme monétisée via freemium + Stripe.
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────┐
+│              Next.js 16 (App Router)          │
+│                                               │
+│  /verifier-entrepreneur   (ContractorCheck)   │
+│  /zone-inondable          (FloodCheck)        │
+│  /terrain-contamine       (TerraCheck)        │
+│  /garderies               (GarderieFind)      │
+│  /salaires                (SalaireLab)        │
+│  /blog/                   (Articles SEO)      │
+│  ... (100 micro-outils planifiés)             │
+│                                               │
+│  Clerk (auth) │ Sentry (errors) │ Axiom (logs)│
+│  Stripe (payments) │ Arcjet (rate limiting)   │
+├───────────────────┬──────────────────────────┤
+│   Supabase        │   Claude Agent SDK        │
+│   PostgreSQL      │   (DevChatbot intégré)    │
+│   + PostGIS       │                           │
+│   + Storage       │                           │
+└───────────────────┴──────────────────────────┘
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Features principales
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **100 micro-outils** — Chaque outil requête les données ouvertes du QC (RBQ, zones inondables, terrains contaminés, garderies, etc.)
+- **SEO-first** — Pages SSG par ville pour chaque outil, articles de blog, JSON-LD structured data
+- **Monétisation Stripe** — Modèle freemium avec checkout intégré pour les APIs B2B
+- **DevChatbot avec Claude Agent SDK** — Chatbot de développement intégré qui inspecte les éléments UI, collecte le contexte de l'app et génère des diffs de code en temps réel
+- **Drizzle ORM + Supabase** — Migrations typesafe, PostGIS pour les requêtes géospatiales
+- **Observabilité complète** — Sentry (erreurs), Axiom (logs), PostHog (analytics), Arcjet (rate limiting)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## AI-Assisted Development
 
-## Learn More
+Le projet intègre directement le **Claude Agent SDK** (`@anthropic-ai/claude-agent-sdk`) dans un DevChatbot embarqué qui :
+- Inspecte les éléments UI de la page en temps réel
+- Collecte le contexte de l'application (routes, state, composants)
+- Génère des code diffs et propose des modifications via un panneau de preview
 
-To learn more about Next.js, take a look at the following resources:
+## Screenshots
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+<!-- TODO: Ajouter des screenshots -->
+*Dashboard des micro-outils et interface de recherche*
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Setup
 
-## Deploy on Vercel
+```bash
+npm install
+npm run dev          # → http://localhost:3000
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Base de données
+npx drizzle-kit push
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Variables d'environnement requises
+cp .env.example .env.local
+```
+
+### Variables d'environnement
+
+```env
+DATABASE_URL=postgresql://...          # Supabase
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=...  # Auth
+STRIPE_SECRET_KEY=...                  # Paiements
+ANTHROPIC_API_KEY=...                  # Claude Agent SDK
+SENTRY_DSN=...                         # Error tracking
+```
