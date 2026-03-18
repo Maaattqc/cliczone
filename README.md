@@ -1,5 +1,7 @@
 # ClicZone
 
+> 🌐 **[Voir la démo live](https://mathieu-fournier.net/cliczone/)** — déployé sur mathieu-fournier.net
+
 > Plateforme SaaS de micro-outils basés sur les données ouvertes du Québec — vérification d'entrepreneurs, zones inondables, terrains contaminés, garderies, et plus.
 
 ![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=flat&logo=next.js&logoColor=white)
@@ -45,6 +47,10 @@ Les données publiques du Québec (RBQ, MELCCFP, ministères) sont éparpillées
 - **DevChatbot avec Claude Agent SDK** — Chatbot de développement intégré qui inspecte les éléments UI, collecte le contexte de l'app et génère des diffs de code en temps réel
 - **Drizzle ORM + Supabase** — Migrations typesafe, PostGIS pour les requêtes géospatiales
 - **Observabilité complète** — Sentry (erreurs), Axiom (logs), PostHog (analytics), Arcjet (rate limiting)
+
+## Screenshots
+
+![Page d'accueil](https://mathieu-fournier.net/cliczone/docs/screenshot-home.png)
 
 ## AI-Assisted Development
 
