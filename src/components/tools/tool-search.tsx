@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { AddressAutocomplete } from "@/components/tools/address-autocomplete";
 
 import { searchEntrepreneur } from "@/lib/actions/verifier-entrepreneur";
 import { searchZoneInondable } from "@/lib/actions/zone-inondable";
@@ -39,13 +40,22 @@ const resultComponents: Record<string, React.ComponentType<{ data: any[] }>> = {
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+const SEARCH_EXAMPLES: Record<string, { label: string; value: string }[]> = {
+  "verifier-entrepreneur": [
+    { label: 'RBQ-5678-9012 (numéro de licence)', value: "RBQ-5678-9012" },
+    { label: '"Plomberie Tremblay" (nom d\'entreprise)', value: "Plomberie Tremblay" },
+    { label: '"Jean Tremblay" (nom d\'entrepreneur)', value: "Jean Tremblay" },
+  ],
+};
+
 interface ToolSearchProps {
   toolSlug: string;
   placeholder: string;
   ville?: string;
+  inputType?: string;
 }
 
-export function ToolSearch({ toolSlug, placeholder, ville }: ToolSearchProps) {
+export function ToolSearch({ toolSlug, placeholder, ville, inputType }: ToolSearchProps) {
   const [query, setQuery] = useState("");
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{
@@ -79,24 +89,49 @@ export function ToolSearch({ toolSlug, placeholder, ville }: ToolSearchProps) {
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
-            type="text"
-            placeholder={placeholder}
+        {inputType === "address" ? (
+          <AddressAutocomplete
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="pl-10 h-11"
-            aria-label={placeholder}
+            onChange={setQuery}
+            placeholder={placeholder}
           />
-        </div>
+        ) : (
+          <div className="relative flex-1">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              type="text"
+              placeholder={placeholder}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-10 h-11"
+              aria-label={placeholder}
+            />
+          </div>
+        )}
         <Button type="submit" className="w-full sm:w-auto h-11" disabled={isPending}>
           {isPending ? "Recherche..." : "Vérifier maintenant"}
         </Button>
       </form>
+
+      {/* Search examples */}
+      {SEARCH_EXAMPLES[toolSlug] && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Exemples :</span>
+          {SEARCH_EXAMPLES[toolSlug].map((example) => (
+            <button
+              key={example.value}
+              type="button"
+              onClick={() => setQuery(example.value)}
+              className="inline-flex items-center rounded-md border bg-muted/50 px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+            >
+              {example.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Results area */}
       {isPending && <ResultSkeleton />}

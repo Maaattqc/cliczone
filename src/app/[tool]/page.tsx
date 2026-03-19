@@ -39,7 +39,7 @@ export default async function ToolPage({ params }: Props) {
 
   return (
     <ToolLayout config={config}>
-      <ToolSearch toolSlug={config.toolSlug} placeholder={config.inputPlaceholder} />
+      <ToolSearch toolSlug={config.toolSlug} placeholder={config.inputPlaceholder} inputType={config.inputType} />
 
       {/* City links for SEO */}
       <section aria-label="Villes disponibles" className="space-y-4">

@@ -49,7 +49,7 @@ export default async function CityToolPage({ params }: Props) {
 
   return (
     <ToolLayout config={config} city={city.name}>
-      <ToolSearch toolSlug={config.toolSlug} placeholder={config.inputPlaceholder} ville={city.name} />
+      <ToolSearch toolSlug={config.toolSlug} placeholder={config.inputPlaceholder} ville={city.name} inputType={config.inputType} />
 
       {/* City stats */}
       <section aria-label="Statistiques locales" className="space-y-2">

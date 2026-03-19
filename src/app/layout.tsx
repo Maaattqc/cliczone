@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Instrument_Serif } from "next/font/google";
+import { Geist, Instrument_Serif } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { frFR } from "@clerk/localizations";
 import "./globals.css";
@@ -10,7 +10,7 @@ import { generateOrganizationSchema } from "@/lib/seo/structured-data";
 import { DevChatbot } from "@/components/DevChatbot";
 import { AppStateProvider } from "@/components/AppStateProvider";
 
-const dmSans = DM_Sans({
+const dmSans = Geist({
   variable: "--font-sans",
   subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "600", "700"],

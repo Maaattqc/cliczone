@@ -115,7 +115,7 @@ export default async function BlogPostPage({
         <Separator />
 
         <div
-          className="prose prose-neutral dark:prose-invert max-w-none prose-headings:font-semibold prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-3 prose-p:text-muted-foreground prose-p:leading-relaxed prose-strong:text-foreground"
+          className="blog-article max-w-prose mx-auto"
           dangerouslySetInnerHTML={{ __html: post.content }}
         />
       </article>
