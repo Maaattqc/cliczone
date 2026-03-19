@@ -5,11 +5,11 @@ const ALFRED_SECRET = "alfred-apply-secret-2026";
 
 export async function POST(req: NextRequest) {
   try {
-    const { file, fullContent, description } = await req.json();
+    const { file, fullContent, oldText, newText, description } = await req.json();
 
-    if (!file || !fullContent) {
+    if (!file || (!fullContent && (!oldText || !newText))) {
       return NextResponse.json(
-        { error: "Missing file or fullContent" },
+        { error: "Missing file or content" },
         { status: 400 }
       );
     }
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
         "X-Alfred-Secret": ALFRED_SECRET,
       },
-      body: JSON.stringify({ file, fullContent, description }),
+      body: JSON.stringify({ file, fullContent, oldText, newText, description }),
     });
 
     const data = await res.json();
