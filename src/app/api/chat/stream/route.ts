@@ -98,12 +98,16 @@ Quand tu veux modifier un fichier du projet, retourne TOUJOURS ce format dans ta
 }
 </code_change>
 
-Règles :
-- fullContent doit contenir le fichier COMPLET (pas juste le diff)
+Règles CRITIQUES :
+- fullContent doit contenir le fichier COMPLET et VALIDE (pas juste le diff)
+- CONSERVE tout le code existant — ne supprime RIEN qui n'est pas demandé
+- Fais des modifications MINIMALES et CHIRURGICALES — change seulement ce qui est demandé
+- NE réécris PAS tout le fichier avec un nouveau design — modifie seulement le texte/élément ciblé
+- Garde TOUS les imports, composants, classes CSS, structure existants INTACTS
 - Le chemin du fichier est relatif à la racine du projet (ex: src/app/page.tsx)
-- Tu peux inclure plusieurs blocs <code_change> si tu modifies plusieurs fichiers
-- Si tu as besoin de voir le contenu actuel d'un fichier, demande à l'utilisateur ou indique quel fichier tu voudrais lire
+- Si tu as besoin du contenu actuel d'un fichier, dis "J'ai besoin de lire le fichier [chemin]" et attends
 - Explique toujours ce que tu changes et pourquoi AVANT le bloc code_change
+- Si tu n'as pas le contenu complet du fichier, NE génère PAS de code_change — demande d'abord le fichier
 ${buildContextBlock(appContext)}`;
 
   const stream = new ReadableStream({
