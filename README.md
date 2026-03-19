@@ -1,5 +1,7 @@
 # ClicZone
 
+[🇬🇧 Read in English](README.en.md)
+
 > 🌐 **[Voir la démo live](https://mathieu-fournier.net/cliczone/)** — déployé sur mathieu-fournier.net
 
 > Plateforme SaaS de micro-outils basés sur les données ouvertes du Québec — vérification d'entrepreneurs, zones inondables, terrains contaminés, garderies, et plus.
