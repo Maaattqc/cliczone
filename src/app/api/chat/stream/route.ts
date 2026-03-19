@@ -86,6 +86,24 @@ export async function POST(req: NextRequest) {
   const systemPrompt = `Tu es un assistant de développement intégré dans ClicZone, une plateforme SaaS de micro-outils basés sur les données publiques du Québec.
 Tu aides l'utilisateur à comprendre et améliorer l'application.
 Réponds en français. Sois concis et pratique.
+
+IMPORTANT — MODIFICATIONS DE FICHIERS :
+Quand tu veux modifier un fichier du projet, retourne TOUJOURS ce format dans ta réponse :
+
+<code_change>
+{
+  "file": "src/app/page.tsx",
+  "description": "Description courte du changement",
+  "fullContent": "... contenu COMPLET du fichier modifié ..."
+}
+</code_change>
+
+Règles :
+- fullContent doit contenir le fichier COMPLET (pas juste le diff)
+- Le chemin du fichier est relatif à la racine du projet (ex: src/app/page.tsx)
+- Tu peux inclure plusieurs blocs <code_change> si tu modifies plusieurs fichiers
+- Si tu as besoin de voir le contenu actuel d'un fichier, demande à l'utilisateur ou indique quel fichier tu voudrais lire
+- Explique toujours ce que tu changes et pourquoi AVANT le bloc code_change
 ${buildContextBlock(appContext)}`;
 
   const stream = new ReadableStream({

@@ -6,6 +6,12 @@ import { useElementInspector } from "./useElementInspector";
 import { AgentSteps } from "./AgentSteps";
 import type { AgentStep } from "./AgentSteps";
 
+interface CodeChange {
+  file: string;
+  description: string;
+  fullContent: string;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -15,6 +21,7 @@ interface Message {
   num_turns?: number | null;
   filesModified?: boolean;
   timestamp?: string;
+  codeChanges?: CodeChange[];
 }
 
 const MAX_MESSAGES = 50;
@@ -51,6 +58,123 @@ function formatTimestamp(): string {
 let stepIdCounter = 0;
 function nextStepId(): string {
   return `step-${++stepIdCounter}`;
+}
+
+function parseCodeChanges(text: string): { cleanText: string; changes: CodeChange[] } {
+  const changes: CodeChange[] = [];
+  const regex = /<code_change>\s*([\s\S]*?)\s*<\/code_change>/g;
+  let match;
+  let cleanText = text;
+
+  while ((match = regex.exec(text)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      if (parsed.file && parsed.fullContent) {
+        changes.push({
+          file: parsed.file,
+          description: parsed.description || "",
+          fullContent: parsed.fullContent,
+        });
+      }
+    } catch {
+      // Not valid JSON, skip
+    }
+    cleanText = cleanText.replace(match[0], "");
+  }
+
+  return { cleanText: cleanText.trim(), changes };
+}
+
+function CodeChangeBlock({ change, index }: { change: CodeChange; index: number }) {
+  const [status, setStatus] = useState<"idle" | "applying" | "success" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  async function handleApply() {
+    setStatus("applying");
+    setErrorMsg("");
+    try {
+      const res = await fetch("/api/chat/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file: change.file,
+          fullContent: change.fullContent,
+          description: change.description,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Apply failed");
+      }
+      setStatus("success");
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(err instanceof Error ? err.message : "Erreur inconnue");
+    }
+  }
+
+  return (
+    <div className="mt-2 rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
+        <div className="flex items-center gap-2 text-[11px] font-mono text-white/50">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-cyan-400/60">
+            <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" />
+            <polyline points="13 2 13 9 20 9" />
+          </svg>
+          <span>{change.file}</span>
+        </div>
+        {change.description && (
+          <span className="text-[10px] text-white/30 truncate ml-2 max-w-[150px]">{change.description}</span>
+        )}
+      </div>
+
+      {/* Code preview */}
+      <div className="max-h-[200px] overflow-y-auto px-3 py-2">
+        <pre className="text-[11px] leading-[1.5] text-white/60 font-mono whitespace-pre-wrap break-all">
+          {change.fullContent.length > 2000
+            ? change.fullContent.slice(0, 2000) + "\n... (tronqué)"
+            : change.fullContent}
+        </pre>
+      </div>
+
+      {/* Action */}
+      <div className="px-3 py-2 border-t border-white/[0.06]">
+        {status === "idle" && (
+          <button
+            onClick={handleApply}
+            className="w-full rounded-lg bg-emerald-500/15 px-3 py-1.5 text-[12px] font-medium text-emerald-300/90 transition-all hover:bg-emerald-500/25 active:scale-[0.98]"
+          >
+            ✅ Appliquer ce changement
+          </button>
+        )}
+        {status === "applying" && (
+          <div className="flex items-center justify-center gap-2 py-1.5 text-[12px] text-cyan-300/70">
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-cyan-400/30 border-t-cyan-400" />
+            Application en cours...
+          </div>
+        )}
+        {status === "success" && (
+          <div className="py-1.5 text-center text-[12px] text-emerald-300/80">
+            ✅ Appliqué! Redéploiement en cours (~2 min)
+          </div>
+        )}
+        {status === "error" && (
+          <div className="flex flex-col gap-1.5">
+            <div className="py-1.5 text-center text-[12px] text-red-300/80">
+              ❌ {errorMsg}
+            </div>
+            <button
+              onClick={handleApply}
+              className="w-full rounded-lg bg-white/[0.06] px-3 py-1 text-[11px] text-white/40 transition-colors hover:bg-white/[0.1]"
+            >
+              Réessayer
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function ChatPanel({ onClose }: { onClose: () => void }) {
@@ -188,15 +312,17 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
 
       const finalSteps = liveStepsRef.current;
       const finalText = liveTextRef.current;
+      const { cleanText, changes } = parseCodeChanges(finalText);
       const assistantMsg: Message = {
         role: "assistant",
-        content: finalText || (finalSteps.length > 0 ? "" : "Aucune reponse."),
+        content: cleanText || (finalSteps.length > 0 ? "" : "Aucune reponse."),
         steps: finalSteps.length > 0 ? finalSteps.map((s) => ({ ...s, status: "done" as const })) : undefined,
         usage: resultData?.usage as { input_tokens: number; output_tokens: number } | undefined || null,
         cost_usd: resultData?.cost_usd as number | undefined || null,
         num_turns: resultData?.num_turns as number | undefined || null,
         filesModified: (resultData?.files_modified as boolean) || false,
         timestamp: formatTimestamp(),
+        codeChanges: changes.length > 0 ? changes : undefined,
       };
       setMessages((prev) => [...prev, assistantMsg]);
       liveStepsRef.current = [];
@@ -332,6 +458,9 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
                       {msg.content}
                     </div>
                   )}
+                  {msg.codeChanges && msg.codeChanges.map((change, ci) => (
+                    <CodeChangeBlock key={`${i}-change-${ci}`} change={change} index={ci} />
+                  ))}
                 </div>
               )}
               {msg.role === "assistant" && (msg.usage || msg.timestamp) && (
