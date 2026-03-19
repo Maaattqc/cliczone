@@ -44,14 +44,14 @@ export function Navbar() {
       <div className="h-1 gold-gradient" />
 
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
-        <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <nav className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-700 text-white font-bold text-sm transition-transform group-hover:scale-105 shadow-sm">
               CZ
             </div>
             <div className="hidden sm:block">
-              <span className="text-lg font-bold tracking-tight text-foreground">
+              <span className="text-xl font-bold tracking-tight text-foreground">
                 ClicZone
               </span>
               <span className="hidden lg:inline text-xs text-muted-foreground ml-2 border-l pl-2 border-border">
@@ -83,7 +83,7 @@ export function Navbar() {
               className="gap-2 text-muted-foreground"
             >
               <Search className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden lg:inline text-xs">Rechercher</span>
+              <span className="hidden lg:inline text-sm">Rechercher</span>
               <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
                 Ctrl K
               </kbd>
@@ -104,7 +104,7 @@ export function Navbar() {
             <div className="hidden sm:flex items-center gap-1.5 ml-1 pl-1.5 border-l border-border">
               <Show when="signed-out">
                 <SignInButton mode="modal">
-                  <Button size="sm" className="font-medium bg-blue-700 hover:bg-blue-800 text-white border-0 shadow-sm">
+                  <Button size="default" className="font-medium bg-blue-700 hover:bg-blue-800 text-white border-0 shadow-sm">
                     Connexion
                   </Button>
                 </SignInButton>
