@@ -136,7 +136,7 @@ export default function HomePage() {
                 </Button>
               </Link>
               <Link href="/a-propos">
-                <Button variant="outline" size="lg" className="font-semibold px-7 border-2 border-foreground/20 hover:border-foreground/40 hover:bg-foreground/5 text-foreground transition-all duration-300">
+                <Button variant="outline" size="lg" className="font-semibold px-7 border-2 border-foreground/20 hover:border-foreground/40 hover:bg-foreground/5 text-white transition-all duration-300">
                   En savoir plus
                 </Button>
               </Link>
