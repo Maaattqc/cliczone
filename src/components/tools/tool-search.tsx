@@ -42,9 +42,9 @@ const resultComponents: Record<string, React.ComponentType<{ data: any[] }>> = {
 
 const SEARCH_EXAMPLES: Record<string, { label: string; value: string }[]> = {
   "verifier-entrepreneur": [
-    { label: 'RBQ-5678-9012 (numéro de licence)', value: "RBQ-5678-9012" },
-    { label: '"Plomberie Tremblay" (nom d\'entreprise)', value: "Plomberie Tremblay" },
-    { label: '"Jean Tremblay" (nom d\'entrepreneur)', value: "Jean Tremblay" },
+    { label: "Construction Leblanc", value: "Construction Leblanc" },
+    { label: "Plomberie Roy", value: "Plomberie Roy" },
+    { label: "Électrique Bouchard", value: "Électrique Bouchard" },
   ],
 };
 
