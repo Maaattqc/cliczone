@@ -103,6 +103,9 @@ Les données publiques du Québec (RBQ, MELCCFP, ministères) sont éparpillées
 ### Page d'accueil
 ![Page d'accueil](https://raw.githubusercontent.com/Maaattqc/cliczone/main/docs/screenshot-home.png)
 
+### Agent IA (DevChatbot)
+![Agent IA](https://raw.githubusercontent.com/Maaattqc/cliczone/main/docs/screenshot-chatbot.png)
+
 ### Vérifier un entrepreneur RBQ
 ![Vérifier entrepreneur](https://raw.githubusercontent.com/Maaattqc/cliczone/main/docs/screenshot-entrepreneur.png)
 
