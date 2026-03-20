@@ -100,7 +100,7 @@ Les données publiques du Québec (RBQ, MELCCFP, ministères) sont éparpillées
 
 ## Screenshots
 
-![Page d'accueil](https://mathieu-fournier.net/cliczone/docs/screenshot-home.png)
+![Page d'accueil](https://raw.githubusercontent.com/Maaattqc/cliczone/main/docs/screenshot-home.png)
 
 ## 🤖 Développement assisté par IA
 
