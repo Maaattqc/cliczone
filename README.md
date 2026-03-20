@@ -115,6 +115,9 @@ Les données publiques du Québec (RBQ, MELCCFP, ministères) sont éparpillées
 ### Blog
 ![Blog](https://raw.githubusercontent.com/Maaattqc/cliczone/main/docs/screenshot-blog.png)
 
+### Agent IA (DevChatbot)
+![Agent IA](https://raw.githubusercontent.com/Maaattqc/cliczone/main/docs/screenshot-chatbot.png)
+
 ## 🤖 Développement assisté par IA
 
 Conçu et architecturé par moi — Claude Code a accéléré l'implémentation des composants et l'intégration des APIs. Le projet intègre aussi directement le **Claude Agent SDK** comme feature produit (DevChatbot).
