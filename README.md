@@ -135,3 +135,9 @@ cp .env.example .env.local
 npm install
 npm run dev
 ```
+
+---
+
+## Author
+
+**Mathieu Fournier** · mathieufournierqc@outlook.com — [@Maaattqc](https://github.com/Maaattqc)
