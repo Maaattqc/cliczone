@@ -2,7 +2,6 @@
 
 [🇬🇧 Read in English](README.en.md)
 
-> 🌐 **[Voir la démo live](https://mathieu-fournier.net/cliczone/)** — déployé sur mathieu-fournier.net
 
 > 🌐 **[Voir la démo live](https://cliczone.ca)** — cliczone.ca
 
