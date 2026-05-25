@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const ALFRED_READ_URL = "https://mathieu-fournier.net/alfred/api/read";
-const ALFRED_SECRET = "alfred-apply-secret-2026";
+const ALFRED_SECRET = process.env.ALFRED_SECRET!;
 
 export async function GET(req: NextRequest) {
   const file = req.nextUrl.searchParams.get("file");

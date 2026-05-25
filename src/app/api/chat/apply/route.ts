@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const ALFRED_APPLY_URL = "https://mathieu-fournier.net/alfred/api/apply";
-const ALFRED_SECRET = "alfred-apply-secret-2026";
+const ALFRED_SECRET = process.env.ALFRED_SECRET!;
 
 export async function POST(req: NextRequest) {
   try {
